@@ -12,7 +12,6 @@ export function initApp(rootElement) {
   const store = new AppStore();
   const toastManager = createToastManager(rootElement);
 
-  // 以前のセッションデータのステップが古い場合の移行補正
   if (store.state.currentStep !== 'start' && store.state.currentStep !== 'rest_option' && store.state.currentStep !== 'history') {
     store.state.currentStep = 'main';
   }
@@ -44,6 +43,13 @@ export function initApp(rootElement) {
           store.confirmCurrentGame();
           toastManager.showToast(`第 ${gameNum} ゲームの組み合わせを確定しました`, 'success');
           render();
+        },
+        onUndoMatch: () => {
+          const ok = store.undoLastGame();
+          if (ok) {
+            toastManager.showToast('直前の確定を取り消しました', 'amber');
+            render();
+          }
         },
         onGoRestOption: () => {
           store.setStep('rest_option');

@@ -2,17 +2,16 @@
  * メイン画面コンポーネント (1画面完結型)
  * - 上部：時系列対戦履歴（第1ゲームが一番上、下に追加される）
  * - 中央〜下部：作成・生成された対戦組み合わせのコート表示、手動入れ替え、再抽選
- * - 最下部：「この組み合わせで確定」ボタン
+ * - 最下部：「この組み合わせで確定」ボタン & 「直前の確定を取り消す」ボタン
  */
 import { selectBestCombination, makeCardKey } from '../../models/algorithm.js';
 
-export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, onGoHistory, onGoHome }) {
+export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoRestOption, onGoHistory, onGoHome }) {
   const playerCount = store.state.playerCount;
   const history = store.state.gameHistory || [];
   const maxRestCount = playerCount - 4;
   const manualRestPlayers = store.state.manualRestPlayers || [];
 
-  // 現在検討中/表示中のゲームデータをローカルで保持
   let currentGame = store.state.currentGame;
   if (!currentGame) {
     currentGame = store.generateNextCurrentGame();
@@ -38,7 +37,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, 
       <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 shrink-0">
         <button id="btn-home" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
           </svg>
         </button>
         <div class="text-center">
@@ -175,7 +174,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, 
         </div>
       </div>
 
-      <!-- 3. Bottom Action Buttons: Confirm Match & Options -->
+      <!-- 3. Bottom Action Buttons: Confirm Match, Undo & Options -->
       <div class="space-y-2.5 pt-2 border-t border-slate-800/60 shrink-0 pb-2">
         <button
           id="btn-confirm-match"
@@ -186,6 +185,18 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, 
           </svg>
           <span>この組み合わせで確定 (第${gameNumber}G)</span>
         </button>
+
+        ${history.length > 0 ? `
+          <button
+            id="btn-undo-main"
+            class="w-full py-3 rounded-xl font-bold text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            </svg>
+            <span>直前の確定を取り消す (第${history.length}G)</span>
+          </button>
+        ` : ''}
 
         ${maxRestCount > 0 ? `
           <button
@@ -202,7 +213,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, 
       </div>
     `;
 
-    // Player slot renderer
     function renderPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       return `
@@ -219,7 +229,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, 
       `;
     }
 
-    // Handlers
     container.querySelectorAll('.player-slot').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const slot = e.currentTarget.dataset.slot;
@@ -293,6 +302,14 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onGoRestOption, 
       confirmMatchBtn.addEventListener('click', () => {
         store.setCurrentGame(currentGame);
         onConfirmMatch();
+      });
+    }
+
+    // 確認ダイアログなしで即座に取り消し実行
+    const undoMainBtn = container.querySelector('#btn-undo-main');
+    if (undoMainBtn) {
+      undoMainBtn.addEventListener('click', () => {
+        onUndoMatch();
       });
     }
 
