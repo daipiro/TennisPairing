@@ -1,4 +1,4 @@
-(function(){const e=document.createElement("link").relList;if(e&&e.supports&&e.supports("modulepreload"))return;for(const s of document.querySelectorAll('link[rel="modulepreload"]'))t(s);new MutationObserver(s=>{for(const i of s)if(i.type==="childList")for(const c of i.addedNodes)c.tagName==="LINK"&&c.rel==="modulepreload"&&t(c)}).observe(document,{childList:!0,subtree:!0});function n(s){const i={};return s.integrity&&(i.integrity=s.integrity),s.referrerPolicy&&(i.referrerPolicy=s.referrerPolicy),s.crossOrigin==="use-credentials"?i.credentials="include":s.crossOrigin==="anonymous"?i.credentials="omit":i.credentials="same-origin",i}function t(s){if(s.ep)return;s.ep=!0;const i=n(s);fetch(s.href,i)}})();function V(d){const[e,n,t,s]=d;return[{team1:[e,n],team2:[t,s]},{team1:[e,t],team2:[n,s]},{team1:[e,s],team2:[n,t]}].map(c=>{const a=[...c.team1].sort((r,p)=>r-p),m=[...c.team2].sort((r,p)=>r-p),[l,o]=[a,m].sort((r,p)=>r[0]-p[0]||r[1]-p[1]),u=`${l[0]}-${l[1]}_vs_${o[0]}-${o[1]}`;return{team1:c.team1,team2:c.team2,key:u}})}function g(d,e){return d<e?`${d}-${e}`:`${e}-${d}`}function L(d,e){const n=[...d].sort((c,a)=>c-a),t=[...e].sort((c,a)=>c-a),[s,i]=[n,t].sort((c,a)=>c[0]-a[0]||c[1]-a[1]);return`${s[0]}-${s[1]}_vs_${i[0]}-${i[1]}`}function W(d){const e={},n={},t={},s=(a,m)=>{const l=g(a,m);return e[l]||0},i=(a,m)=>{const l=g(a,m);return n[l]||0},c=a=>t[a]||0;for(const a of d){const{team1:m,team2:l}=a,o=g(m[0],m[1]),u=g(l[0],l[1]);e[o]=(e[o]||0)+1,e[u]=(e[u]||0)+1;for(const p of m)for(const b of l){const w=g(p,b);n[w]=(n[w]||0)+1}const r=L(m,l);t[r]=(t[r]||0)+1}return{pairCounts:e,opponentCounts:n,cardCounts:t,getPair:s,getOpponent:i,getCard:c}}function F(d,e,n=null){const{team1:t,team2:s,key:i}=d,{getPair:c,getOpponent:a,getCard:m}=W(e),l=c(t[0],t[1])+c(s[0],s[1]),o=a(t[0],s[0])+a(t[0],s[1])+a(t[1],s[0])+a(t[1],s[1]),u=m(i);let r=0,p=!1;if(e.length>0){const h=e[e.length-1],k=g(h.team1[0],h.team1[1]),S=g(h.team2[0],h.team2[1]),C=g(t[0],t[1]),P=g(s[0],s[1]);(C===k||C===S)&&r++,(P===k||P===S)&&r++;const R=L(h.team1,h.team2);i===R&&(p=!0)}const b=n&&i===n;return{score:l*100+o*10+u*30+r*300+(p?500:0)+(b?200:0),breakdown:{pairRepetition:l,oppRepetition:o,sameCardCount:u,lastGameSamePairCount:r,lastGameSameCard:p,isSameAsLastDisplayed:b}}}function J(d,e=[]){const n=d-4;if(n<=0)return{restPlayers:[],manualRestPlayers:[],autoRestPlayers:[]};const t=new Set(e.filter(l=>l>=1&&l<=d)),s=n-t.size;if(s<=0){const l=Array.from(t).sort((o,u)=>o-u);return{restPlayers:l,manualRestPlayers:l,autoRestPlayers:[]}}const i=[];for(let l=1;l<=d;l++)t.has(l)||i.push(l);const c=[...i];for(let l=c.length-1;l>0;l--){const o=Math.floor(Math.random()*(l+1));[c[l],c[o]]=[c[o],c[l]]}const a=c.slice(0,s).sort((l,o)=>l-o);return{restPlayers:[...Array.from(t),...a].sort((l,o)=>l-o),manualRestPlayers:Array.from(t).sort((l,o)=>l-o),autoRestPlayers:a}}function O(d,e,n=null){const s=V(d).map(l=>{const{score:o,breakdown:u}=F(l,e,n);return{...l,score:o,breakdown:u}}),c=Math.min(...s.map(l=>l.score))+20,a=s.filter(l=>l.score<=c),m=Math.floor(Math.random()*a.length);return a[m]}const U="tennis_pairing_app_state_v1";class Y{constructor(){this.state=this.loadState(),this.state.currentStep!=="start"&&!this.state.currentGame&&this.generateNextCurrentGame()}getDefaultState(){return{playerCount:6,currentStep:"start",gameHistory:[],manualRestPlayers:[],currentGame:null}}loadState(){try{const e=localStorage.getItem(U);if(e){const n=JSON.parse(e);return n.manualRestPlayers||(n.manualRestPlayers=[]),(n.currentStep==="match_setup"||n.currentStep==="match_confirm")&&(n.currentStep="main"),n}}catch(e){console.error("Failed to load state from localStorage:",e)}return this.getDefaultState()}saveState(){try{localStorage.setItem(U,JSON.stringify(this.state))}catch(e){console.error("Failed to save state to localStorage:",e)}}setPlayerCount(e){this.state.playerCount=e;const n=e-4;this.state.manualRestPlayers=(this.state.manualRestPlayers||[]).filter(t=>t<=e).slice(0,Math.max(0,n)),this.state.currentGame=null,this.generateNextCurrentGame(),this.state.currentStep="main",this.saveState()}generateNextCurrentGame(){const e=this.state.playerCount,n=this.state.gameHistory.length+1,{restPlayers:t,manualRestPlayers:s,autoRestPlayers:i}=J(e,this.state.manualRestPlayers||[]),c=[];for(let m=1;m<=e;m++)t.includes(m)||c.push(m);const a=O(c,this.state.gameHistory);return this.state.currentGame={gameNumber:n,restPlayers:t,manualRestPlayers:s,autoRestPlayers:i,team1:a.team1,team2:a.team2,lastDisplayedKey:a.key},this.saveState(),this.state.currentGame}setManualRestPlayers(e){this.state.manualRestPlayers=[...e].sort((n,t)=>n-t),this.generateNextCurrentGame(),this.saveState()}setStep(e){this.state.currentStep=e,this.saveState()}setCurrentGame(e){this.state.currentGame=e,this.saveState()}confirmCurrentGame(){if(!this.state.currentGame)return;const n={gameNumber:this.state.gameHistory.length+1,team1:[...this.state.currentGame.team1],team2:[...this.state.currentGame.team2],restPlayers:[...this.state.currentGame.restPlayers],manuallySelectedRestPlayers:[...this.state.currentGame.manualRestPlayers||[]]};this.state.gameHistory.push(n),this.state.currentGame=null,this.generateNextCurrentGame(),this.state.currentStep="main",this.saveState()}undoLastGame(){if(this.state.gameHistory.length===0)return!1;const e=this.state.gameHistory.pop(),n=e.manuallySelectedRestPlayers||[],t=e.restPlayers||[],s=t.filter(i=>!n.includes(i));return this.state.currentGame={gameNumber:e.gameNumber,team1:e.team1,team2:e.team2,restPlayers:t,manualRestPlayers:n,autoRestPlayers:s,lastDisplayedKey:null},this.state.currentStep="main",this.saveState(),!0}resetAll(){this.state=this.getDefaultState(),this.saveState()}getStats(){const e={},n=this.state.playerCount;for(let t=1;t<=n;t++)e[t]={player:t,playCount:0,restCount:0};for(const t of this.state.gameHistory){const s=[...t.team1,...t.team2];for(const i of s)e[i]&&e[i].playCount++;for(const i of t.restPlayers)e[i]&&e[i].restCount++}return e}}function Q({store:d,onStart:e}){let n=d.state.playerCount||6;const t=d.state.gameHistory.length>0,s=document.createElement("div");s.className="flex-1 flex flex-col justify-between p-6 animate-slide-up";const i=()=>{s.innerHTML=`
+(function(){const e=document.createElement("link").relList;if(e&&e.supports&&e.supports("modulepreload"))return;for(const s of document.querySelectorAll('link[rel="modulepreload"]'))t(s);new MutationObserver(s=>{for(const i of s)if(i.type==="childList")for(const c of i.addedNodes)c.tagName==="LINK"&&c.rel==="modulepreload"&&t(c)}).observe(document,{childList:!0,subtree:!0});function o(s){const i={};return s.integrity&&(i.integrity=s.integrity),s.referrerPolicy&&(i.referrerPolicy=s.referrerPolicy),s.crossOrigin==="use-credentials"?i.credentials="include":s.crossOrigin==="anonymous"?i.credentials="omit":i.credentials="same-origin",i}function t(s){if(s.ep)return;s.ep=!0;const i=o(s);fetch(s.href,i)}})();function Y(d){const[e,o,t,s]=d;return[{team1:[e,o],team2:[t,s]},{team1:[e,t],team2:[o,s]},{team1:[e,s],team2:[o,t]}].map(c=>{const a=[...c.team1].sort((r,p)=>r-p),m=[...c.team2].sort((r,p)=>r-p),[l,n]=[a,m].sort((r,p)=>r[0]-p[0]||r[1]-p[1]),u=`${l[0]}-${l[1]}_vs_${n[0]}-${n[1]}`;return{team1:c.team1,team2:c.team2,key:u}})}function g(d,e){return d<e?`${d}-${e}`:`${e}-${d}`}function R(d,e){const o=[...d].sort((c,a)=>c-a),t=[...e].sort((c,a)=>c-a),[s,i]=[o,t].sort((c,a)=>c[0]-a[0]||c[1]-a[1]);return`${s[0]}-${s[1]}_vs_${i[0]}-${i[1]}`}function Q(d){const e={},o={},t={},s=(a,m)=>{const l=g(a,m);return e[l]||0},i=(a,m)=>{const l=g(a,m);return o[l]||0},c=a=>t[a]||0;for(const a of d){const{team1:m,team2:l}=a,n=g(m[0],m[1]),u=g(l[0],l[1]);e[n]=(e[n]||0)+1,e[u]=(e[u]||0)+1;for(const p of m)for(const b of l){const k=g(p,b);o[k]=(o[k]||0)+1}const r=R(m,l);t[r]=(t[r]||0)+1}return{pairCounts:e,opponentCounts:o,cardCounts:t,getPair:s,getOpponent:i,getCard:c}}function X(d,e,o=null){const{team1:t,team2:s,key:i}=d,{getPair:c,getOpponent:a,getCard:m}=Q(e),l=c(t[0],t[1])+c(s[0],s[1]),n=a(t[0],s[0])+a(t[0],s[1])+a(t[1],s[0])+a(t[1],s[1]),u=m(i);let r=0,p=!1;if(e.length>0){const y=e[e.length-1],S=g(y.team1[0],y.team1[1]),C=g(y.team2[0],y.team2[1]),P=g(t[0],t[1]),$=g(s[0],s[1]);(P===S||P===C)&&r++,($===S||$===C)&&r++;const L=R(y.team1,y.team2);i===L&&(p=!0)}const b=o&&i===o;return{score:l*100+n*10+u*30+r*300+(p?500:0)+(b?200:0),breakdown:{pairRepetition:l,oppRepetition:n,sameCardCount:u,lastGameSamePairCount:r,lastGameSameCard:p,isSameAsLastDisplayed:b}}}function Z(d,e=[]){const o=d-4;if(o<=0)return{restPlayers:[],manualRestPlayers:[],autoRestPlayers:[]};const t=new Set(e.filter(l=>l>=1&&l<=d)),s=o-t.size;if(s<=0){const l=Array.from(t).sort((n,u)=>n-u);return{restPlayers:l,manualRestPlayers:l,autoRestPlayers:[]}}const i=[];for(let l=1;l<=d;l++)t.has(l)||i.push(l);const c=[...i];for(let l=c.length-1;l>0;l--){const n=Math.floor(Math.random()*(l+1));[c[l],c[n]]=[c[n],c[l]]}const a=c.slice(0,s).sort((l,n)=>l-n);return{restPlayers:[...Array.from(t),...a].sort((l,n)=>l-n),manualRestPlayers:Array.from(t).sort((l,n)=>l-n),autoRestPlayers:a}}function O(d,e,o=null){const s=Y(d).map(l=>{const{score:n,breakdown:u}=X(l,e,o);return{...l,score:n,breakdown:u}}),c=Math.min(...s.map(l=>l.score))+20,a=s.filter(l=>l.score<=c),m=Math.floor(Math.random()*a.length);return a[m]}const I="tennis_pairing_app_state_v1";class ee{constructor(){this.state=this.loadState(),this.state.currentStep!=="start"&&!this.state.currentGame&&this.generateNextCurrentGame()}getDefaultState(){return{playerCount:6,currentStep:"start",gameHistory:[],manualRestPlayers:[],currentGame:null}}loadState(){try{const e=localStorage.getItem(I);if(e){const o=JSON.parse(e);return o.manualRestPlayers||(o.manualRestPlayers=[]),(o.currentStep==="match_setup"||o.currentStep==="match_confirm")&&(o.currentStep="main"),o}}catch(e){console.error("Failed to load state from localStorage:",e)}return this.getDefaultState()}saveState(){try{localStorage.setItem(I,JSON.stringify(this.state))}catch(e){console.error("Failed to save state to localStorage:",e)}}setPlayerCount(e){this.state.playerCount=e;const o=e-4;this.state.manualRestPlayers=(this.state.manualRestPlayers||[]).filter(t=>t<=e).slice(0,Math.max(0,o)),this.state.currentGame=null,this.generateNextCurrentGame(),this.state.currentStep="main",this.saveState()}generateNextCurrentGame(){const e=this.state.playerCount,o=this.state.gameHistory.length+1,{restPlayers:t,manualRestPlayers:s,autoRestPlayers:i}=Z(e,this.state.manualRestPlayers||[]),c=[];for(let m=1;m<=e;m++)t.includes(m)||c.push(m);const a=O(c,this.state.gameHistory);return this.state.currentGame={gameNumber:o,restPlayers:t,manualRestPlayers:s,autoRestPlayers:i,team1:a.team1,team2:a.team2,lastDisplayedKey:a.key},this.saveState(),this.state.currentGame}setManualRestPlayers(e){this.state.manualRestPlayers=[...e].sort((o,t)=>o-t),this.generateNextCurrentGame(),this.saveState()}setStep(e){this.state.currentStep=e,this.saveState()}setCurrentGame(e){this.state.currentGame=e,this.saveState()}confirmCurrentGame(){if(!this.state.currentGame)return;const o={gameNumber:this.state.gameHistory.length+1,team1:[...this.state.currentGame.team1],team2:[...this.state.currentGame.team2],restPlayers:[...this.state.currentGame.restPlayers],manuallySelectedRestPlayers:[...this.state.currentGame.manualRestPlayers||[]]};this.state.gameHistory.push(o),this.state.currentGame=null,this.generateNextCurrentGame(),this.state.currentStep="main",this.saveState()}undoLastGame(){if(this.state.gameHistory.length===0)return!1;const e=this.state.gameHistory.pop(),o=e.manuallySelectedRestPlayers||[],t=e.restPlayers||[],s=t.filter(i=>!o.includes(i));return this.state.currentGame={gameNumber:e.gameNumber,team1:e.team1,team2:e.team2,restPlayers:t,manualRestPlayers:o,autoRestPlayers:s,lastDisplayedKey:null},this.state.currentStep="main",this.saveState(),!0}resetAll(){this.state=this.getDefaultState(),this.saveState()}getStats(){const e={},o=this.state.playerCount;for(let t=1;t<=o;t++)e[t]={player:t,playCount:0,restCount:0};for(const t of this.state.gameHistory){const s=[...t.team1,...t.team2];for(const i of s)e[i]&&e[i].playCount++;for(const i of t.restPlayers)e[i]&&e[i].restCount++}return e}}function te({store:d,onStart:e}){let o=d.state.playerCount||6;const t=d.state.gameHistory.length>0,s=document.createElement("div");s.className="flex-1 flex flex-col justify-between p-6 animate-slide-up";const i=()=>{s.innerHTML=`
       <div class="flex-1 flex flex-col justify-center items-center text-center space-y-8 my-auto">
         <!-- Header / Logo -->
         <div class="space-y-3">
@@ -23,14 +23,14 @@
             ${[4,5,6,7,8].map(m=>`
               <button
                 data-count="${m}"
-                class="count-btn py-3.5 rounded-2xl font-bold text-lg transition-all duration-200 ${n===m?"bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30 scale-105 ring-2 ring-emerald-300":"bg-slate-800/80 text-slate-300 hover:bg-slate-700 active:scale-95"}"
+                class="count-btn py-3.5 rounded-2xl font-bold text-lg transition-all duration-200 ${o===m?"bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30 scale-105 ring-2 ring-emerald-300":"bg-slate-800/80 text-slate-300 hover:bg-slate-700 active:scale-95"}"
               >
                 ${m}人
               </button>
             `).join("")}
           </div>
           <div class="text-xs text-slate-400 bg-slate-900/60 py-2.5 px-4 rounded-xl border border-slate-800">
-            試合出場：<span class="text-emerald-400 font-bold">4人</span> ／ 休憩：<span class="text-amber-400 font-bold">${n-4}人</span>
+            試合出場：<span class="text-emerald-400 font-bold">4人</span> ／ 休憩：<span class="text-amber-400 font-bold">${o-4}人</span>
           </div>
         </div>
       </div>
@@ -56,7 +56,7 @@
           </button>
         `:""}
       </div>
-    `,s.querySelectorAll(".count-btn").forEach(m=>{m.addEventListener("click",l=>{n=parseInt(l.currentTarget.dataset.count,10),i()})});const c=s.querySelector("#btn-start");c&&c.addEventListener("click",()=>{e(n,!1)});const a=s.querySelector("#btn-resume");a&&a.addEventListener("click",()=>{e(d.state.playerCount,!0)})};return i(),s}function X({store:d,onConfirmMatch:e,onUndoMatch:n,onGoRestOption:t,onGoHistory:s,onGoHome:i}){const c=d.state.playerCount,a=d.state.gameHistory||[],m=c-4,l=d.state.manualRestPlayers||[];let o=d.state.currentGame;o?o={...o}:o=d.generateNextCurrentGame();let u=[];const r=document.createElement("div");r.className="flex-1 flex flex-col justify-between p-6 animate-slide-up overflow-y-auto no-scrollbar space-y-6";const p=()=>{l.length;const{gameNumber:b,team1:w,team2:h,restPlayers:k,manualRestPlayers:S,autoRestPlayers:C}=o,P=S&&S.length>0?S.join("、"):"なし",R=C&&C.length>0?C.join("、"):"なし";r.innerHTML=`
+    `,s.querySelectorAll(".count-btn").forEach(m=>{m.addEventListener("click",l=>{o=parseInt(l.currentTarget.dataset.count,10),i()})});const c=s.querySelector("#btn-start");c&&c.addEventListener("click",()=>{e(o,!1)});const a=s.querySelector("#btn-resume");a&&a.addEventListener("click",()=>{e(d.state.playerCount,!0)})};return i(),s}function se({store:d,onConfirmMatch:e,onUndoMatch:o,onGoRestOption:t,onGoHistory:s,onGoHome:i}){const c=d.state.playerCount,a=d.state.gameHistory||[],m=c-4,l=d.state.manualRestPlayers||[];let n=d.state.currentGame;n?n={...n}:n=d.generateNextCurrentGame();let u=[];const r=document.createElement("div");r.className="flex-1 flex flex-col justify-between p-6 animate-slide-up overflow-y-auto no-scrollbar space-y-6";const p=()=>{l.length;const{gameNumber:b,team1:k,team2:y,restPlayers:S,manualRestPlayers:C,autoRestPlayers:P}=n,$=C&&C.length>0?C.join("、"):"なし",L=P&&P.length>0?P.join("、"):"なし";r.innerHTML=`
       <!-- Top Navigation Header -->
       <div class="flex items-center justify-between border-b border-slate-800/80 pb-3 shrink-0">
         <button id="btn-home" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
@@ -95,18 +95,18 @@
           </div>
         `:`
           <div class="space-y-2.5">
-            ${a.map(f=>`
+            ${a.map(x=>`
               <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 flex items-center justify-between text-xs">
                 <div class="flex items-center space-x-2">
                   <span class="font-black text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full text-[10px]">
-                    第${f.gameNumber}G
+                    第${x.gameNumber}G
                   </span>
                   <span class="font-extrabold text-white text-sm">
-                    ${f.team1[0]}・${f.team1[1]} <span class="text-slate-500 font-normal text-xs">vs</span> ${f.team2[0]}・${f.team2[1]}
+                    ${x.team1[0]}・${x.team1[1]} <span class="text-slate-500 font-normal text-xs">vs</span> ${x.team2[0]}・${x.team2[1]}
                   </span>
                 </div>
                 <div class="text-[11px] text-amber-400 font-medium">
-                  休: ${f.restPlayers&&f.restPlayers.length>0?f.restPlayers.join(","):"なし"}
+                  休: ${x.restPlayers&&x.restPlayers.length>0?x.restPlayers.join(","):"なし"}
                 </div>
               </div>
             `).join("")}
@@ -124,7 +124,7 @@
             </h3>
           </div>
           <span class="text-[11px] text-emerald-300 bg-emerald-950/80 border border-emerald-800 px-2.5 py-0.5 rounded-full">
-            💡 選手2人タップで位置交換
+            💡 選手2人タップで交代・入れ替え
           </span>
         </div>
 
@@ -141,35 +141,41 @@
           <div class="mb-9 text-center space-y-2">
             <span class="text-[11px] font-extrabold uppercase tracking-widest text-emerald-400/90">TEAM A</span>
             <div class="flex items-center justify-center space-x-4">
-              ${$(w[0],"t1-0")}
+              ${j(k[0],"t1-0")}
               <span class="text-slate-500 font-bold">•</span>
-              ${$(w[1],"t1-1")}
+              ${j(k[1],"t1-1")}
             </div>
           </div>
 
           <!-- Team 2 (Bottom Court) -->
           <div class="mt-9 text-center space-y-2">
             <div class="flex items-center justify-center space-x-4">
-              ${$(h[0],"t2-0")}
+              ${j(y[0],"t2-0")}
               <span class="text-slate-500 font-bold">•</span>
-              ${$(h[1],"t2-1")}
+              ${j(y[1],"t2-1")}
             </div>
             <span class="text-[11px] font-extrabold uppercase tracking-widest text-teal-400/90">TEAM B</span>
           </div>
         </div>
 
-        <!-- Rest & Options Info Panel -->
-        <div class="glass-panel rounded-2xl p-4 text-xs space-y-2">
+        <!-- Rest & Options Info Panel (with clickable Rest Player Buttons) -->
+        <div class="glass-panel rounded-2xl p-4 text-xs space-y-3">
           <div class="flex items-center justify-between">
-            <span class="font-bold text-slate-300">休憩プレイヤー:</span>
-            <span class="font-extrabold text-amber-400 text-sm">
-              ${k&&k.length>0?k.join(" 、 "):"なし"}
-            </span>
+            <span class="font-bold text-slate-300">休憩プレイヤー (タップで出場者と交代):</span>
           </div>
+
+          ${S&&S.length>0?`
+            <div class="flex items-center space-x-3 py-1">
+              ${S.map((x,f)=>D(x,`rest-${f}`)).join("")}
+            </div>
+          `:`
+            <div class="text-slate-400 italic text-xs">全員出場中</div>
+          `}
+
           ${m>0?`
-            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/60">
-              <span>手動固定：<strong class="text-amber-300">${P}</strong></span>
-              <span>自動補充：<strong class="text-teal-300">${R}</strong></span>
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-800/60">
+              <span>手動固定：<strong class="text-amber-300">${$}</strong></span>
+              <span>自動補充：<strong class="text-teal-300">${L}</strong></span>
               <button id="btn-open-rest-option" class="text-amber-400 hover:underline font-bold ml-2">
                 設定変更
               </button>
@@ -193,7 +199,7 @@
             id="btn-clear-swap"
             class="py-3 rounded-xl font-bold text-xs bg-slate-800/90 text-slate-300 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all"
           >
-            位置選択を解除
+            選択状態を解除
           </button>
         </div>
       </div>
@@ -235,14 +241,22 @@
           </button>
         `:""}
       </div>
-    `;function $(f,v){const x=u.includes(v);return`
+    `;function j(x,f){const h=u.includes(f);return`
         <button
-          data-slot="${v}"
-          class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${x?"bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-110 animate-bounce":"bg-slate-800/90 text-white hover:bg-slate-700 border border-slate-600/50 active:scale-95"}"
+          data-slot="${f}"
+          class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${h?"bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-110 animate-bounce":"bg-slate-800/90 text-white hover:bg-slate-700 border border-slate-600/50 active:scale-95"}"
         >
-          ${f}
+          ${x}
         </button>
-      `}r.querySelectorAll(".player-slot").forEach(f=>{f.addEventListener("click",v=>{const x=v.currentTarget.dataset.slot;u.includes(x)?u=u.filter(j=>j!==x):(u.push(x),u.length===2&&(D(u[0],u[1]),u=[])),p()})});function D(f,v){const x=y=>{if(y==="t1-0")return o.team1[0];if(y==="t1-1")return o.team1[1];if(y==="t2-0")return o.team2[0];if(y==="t2-1")return o.team2[1]},j=(y,M)=>{y==="t1-0"&&(o.team1[0]=M),y==="t1-1"&&(o.team1[1]=M),y==="t2-0"&&(o.team2[0]=M),y==="t2-1"&&(o.team2[1]=M)},K=x(f),z=x(v);j(f,z),j(v,K),o.lastDisplayedKey=L(o.team1,o.team2),d.setCurrentGame(o)}const E=r.querySelector("#btn-reroll");E&&E.addEventListener("click",()=>{const f=[...o.team1,...o.team2],v=o.lastDisplayedKey||L(o.team1,o.team2),x=O(f,d.state.gameHistory,v);o.team1=x.team1,o.team2=x.team2,o.lastDisplayedKey=x.key,u=[],d.setCurrentGame(o),p()});const G=r.querySelector("#btn-clear-swap");G&&G.addEventListener("click",()=>{u=[],p()});const B=r.querySelector("#btn-confirm-match");B&&B.addEventListener("click",()=>{d.setCurrentGame(o),e()});const H=r.querySelector("#btn-undo-main");H&&H.addEventListener("click",()=>{n()});const N=r.querySelector("#btn-open-rest-option");N&&N.addEventListener("click",t);const T=r.querySelector("#btn-option-secondary");T&&T.addEventListener("click",t);const A=r.querySelector("#btn-view-stats");A&&A.addEventListener("click",s);const _=r.querySelector("#btn-home");_&&_.addEventListener("click",i);const q=r.querySelector("#btn-history");q&&q.addEventListener("click",s)};return p(),r}function Z({store:d,onSaveAndBack:e}){const n=d.state.playerCount,t=n-4,s=new Set(d.state.manualRestPlayers||[]),i=document.createElement("div");i.className="flex-1 flex flex-col justify-between p-6 animate-slide-up";const c=()=>{const a=s.size;i.innerHTML=`
+      `}function D(x,f){const h=u.includes(f);return`
+        <button
+          data-slot="${f}"
+          class="player-slot px-4 py-2 rounded-xl font-bold text-sm flex items-center space-x-1.5 transition-all duration-200 shadow-sm ${h?"bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse":"bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95"}"
+        >
+          <span class="text-xs text-slate-400 font-normal">休</span>
+          <span class="font-black text-base">${x}</span>
+        </button>
+      `}r.querySelectorAll(".player-slot").forEach(x=>{x.addEventListener("click",f=>{const h=f.currentTarget.dataset.slot;u.includes(h)?u=u.filter(M=>M!==h):(u.push(h),u.length===2&&(K(u[0],u[1]),u=[])),p()})});function K(x,f){const h=v=>{if(v==="t1-0")return n.team1[0];if(v==="t1-1")return n.team1[1];if(v==="t2-0")return n.team2[0];if(v==="t2-1")return n.team2[1];if(v.startsWith("rest-")){const w=parseInt(v.replace("rest-",""),10);return n.restPlayers[w]}},M=(v,w)=>{if(v==="t1-0")n.team1[0]=w;else if(v==="t1-1")n.team1[1]=w;else if(v==="t2-0")n.team2[0]=w;else if(v==="t2-1")n.team2[1]=w;else if(v.startsWith("rest-")){const V=parseInt(v.replace("rest-",""),10);n.restPlayers[V]=w,n.restPlayers.sort((F,J)=>F-J)}},z=h(x),W=h(f);M(x,W),M(f,z),n.lastDisplayedKey=R(n.team1,n.team2),d.setCurrentGame(n)}const E=r.querySelector("#btn-reroll");E&&E.addEventListener("click",()=>{const x=[...n.team1,...n.team2],f=n.lastDisplayedKey||R(n.team1,n.team2),h=O(x,d.state.gameHistory,f);n.team1=h.team1,n.team2=h.team2,n.lastDisplayedKey=h.key,u=[],d.setCurrentGame(n),p()});const G=r.querySelector("#btn-clear-swap");G&&G.addEventListener("click",()=>{u=[],p()});const B=r.querySelector("#btn-confirm-match");B&&B.addEventListener("click",()=>{d.setCurrentGame(n),e()});const H=r.querySelector("#btn-undo-main");H&&H.addEventListener("click",()=>{o()});const N=r.querySelector("#btn-open-rest-option");N&&N.addEventListener("click",t);const T=r.querySelector("#btn-option-secondary");T&&T.addEventListener("click",t);const A=r.querySelector("#btn-view-stats");A&&A.addEventListener("click",s);const _=r.querySelector("#btn-home");_&&_.addEventListener("click",i);const q=r.querySelector("#btn-history");q&&q.addEventListener("click",s)};return p(),r}function ae({store:d,onSaveAndBack:e}){const o=d.state.playerCount,t=o-4,s=new Set(d.state.manualRestPlayers||[]),i=document.createElement("div");i.className="flex-1 flex flex-col justify-between p-6 animate-slide-up";const c=()=>{const a=s.size;i.innerHTML=`
       <!-- Top Navigation Header -->
       <div class="flex items-center justify-between border-b border-slate-800/80 pb-4">
         <button id="btn-cancel" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center space-x-1">
@@ -269,13 +283,13 @@
         ${t>0?`
           <!-- Player Selection Grid -->
           <div class="grid grid-cols-4 gap-3">
-            ${Array.from({length:n},(o,u)=>u+1).map(o=>{const u=s.has(o),r=!u&&a>=t;return`
+            ${Array.from({length:o},(n,u)=>u+1).map(n=>{const u=s.has(n),r=!u&&a>=t;return`
                 <button
-                  data-player="${o}"
+                  data-player="${n}"
                   ${r?"disabled":""}
                   class="player-option-btn relative py-5 rounded-2xl font-extrabold text-2xl transition-all duration-200 flex flex-col items-center justify-center ${u?"bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30 scale-105 ring-2 ring-amber-300":r?"bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50":"bg-slate-800/90 text-slate-200 hover:bg-slate-700/90 border border-slate-700/60 active:scale-95"}"
                 >
-                  <span>${o}</span>
+                  <span>${n}</span>
                   ${u?'<span class="text-[10px] uppercase font-bold tracking-tight bg-slate-950/80 text-amber-300 px-1.5 py-0.5 rounded-full mt-1">固定指定</span>':""}
                 </button>
               `}).join("")}
@@ -307,7 +321,7 @@
           <span>設定を保存して戻る</span>
         </button>
       </div>
-    `,i.querySelectorAll(".player-option-btn").forEach(o=>{o.addEventListener("click",u=>{const r=parseInt(u.currentTarget.dataset.player,10);s.has(r)?s.delete(r):s.size<t&&s.add(r),c()})});const m=i.querySelector("#btn-save-option");m&&m.addEventListener("click",()=>{const o=Array.from(s);d.setManualRestPlayers(o),e()});const l=i.querySelector("#btn-cancel");l&&l.addEventListener("click",()=>{e()})};return c(),i}function ee({store:d,onUndo:e,onReset:n,onBack:t}){const s=document.createElement("div");s.className="flex-1 flex flex-col justify-between p-6 animate-slide-up";const i=d.state.gameHistory||[],c=d.getStats(),a=d.state.playerCount;return(()=>{s.innerHTML=`
+    `,i.querySelectorAll(".player-option-btn").forEach(n=>{n.addEventListener("click",u=>{const r=parseInt(u.currentTarget.dataset.player,10);s.has(r)?s.delete(r):s.size<t&&s.add(r),c()})});const m=i.querySelector("#btn-save-option");m&&m.addEventListener("click",()=>{const n=Array.from(s);d.setManualRestPlayers(n),e()});const l=i.querySelector("#btn-cancel");l&&l.addEventListener("click",()=>{e()})};return c(),i}function re({store:d,onUndo:e,onReset:o,onBack:t}){const s=document.createElement("div");s.className="flex-1 flex flex-col justify-between p-6 animate-slide-up";const i=d.state.gameHistory||[],c=d.getStats(),a=d.state.playerCount;return(()=>{s.innerHTML=`
       <!-- Navigation Bar -->
       <div class="flex items-center justify-between border-b border-slate-800/80 pb-4">
         <button id="btn-back" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center space-x-1">
@@ -420,9 +434,9 @@
           最初からやり直す (データ全リセット)
         </button>
       </div>
-    `;const l=s.querySelector("#btn-back");l&&l.addEventListener("click",t);const o=s.querySelector("#btn-undo");o&&o.addEventListener("click",()=>{confirm(`最新の第 ${i.length} ゲームの確定を取り消して巻き戻しますか？`)&&e()});const u=s.querySelector("#btn-reset");u&&u.addEventListener("click",()=>{confirm("すべての対戦履歴と進行状況をリセットして、最初からやり直しますか？")&&n()})})(),s}function te(d){let e=null;return{showToast(n,t="info",s=3e3){e&&e.remove(),e=document.createElement("div"),e.className=`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl font-semibold text-sm shadow-2xl backdrop-blur-md border animate-slide-up flex items-center space-x-2 ${t==="success"?"bg-emerald-900/90 text-emerald-200 border-emerald-500/50":t==="amber"?"bg-amber-900/90 text-amber-200 border-amber-500/50":"bg-slate-800/90 text-slate-100 border-slate-700"}`,e.innerHTML=`
-        <span>${n}</span>
-      `,d.appendChild(e),setTimeout(()=>{e&&(e.classList.add("opacity-0","transition-opacity","duration-300"),setTimeout(()=>e==null?void 0:e.remove(),300))},s)},showUpdatePrompt(n){const t=document.createElement("div");t.className="fixed top-4 inset-x-4 z-50 p-4 rounded-2xl glass-panel border border-emerald-500/40 shadow-2xl flex items-center justify-between animate-slide-up",t.innerHTML=`
+    `;const l=s.querySelector("#btn-back");l&&l.addEventListener("click",t);const n=s.querySelector("#btn-undo");n&&n.addEventListener("click",()=>{confirm(`最新の第 ${i.length} ゲームの確定を取り消して巻き戻しますか？`)&&e()});const u=s.querySelector("#btn-reset");u&&u.addEventListener("click",()=>{confirm("すべての対戦履歴と進行状況をリセットして、最初からやり直しますか？")&&o()})})(),s}function ne(d){let e=null;return{showToast(o,t="info",s=3e3){e&&e.remove(),e=document.createElement("div"),e.className=`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl font-semibold text-sm shadow-2xl backdrop-blur-md border animate-slide-up flex items-center space-x-2 ${t==="success"?"bg-emerald-900/90 text-emerald-200 border-emerald-500/50":t==="amber"?"bg-amber-900/90 text-amber-200 border-amber-500/50":"bg-slate-800/90 text-slate-100 border-slate-700"}`,e.innerHTML=`
+        <span>${o}</span>
+      `,d.appendChild(e),setTimeout(()=>{e&&(e.classList.add("opacity-0","transition-opacity","duration-300"),setTimeout(()=>e==null?void 0:e.remove(),300))},s)},showUpdatePrompt(o){const t=document.createElement("div");t.className="fixed top-4 inset-x-4 z-50 p-4 rounded-2xl glass-panel border border-emerald-500/40 shadow-2xl flex items-center justify-between animate-slide-up",t.innerHTML=`
         <div class="flex items-center space-x-3">
           <div class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
           <span class="text-xs font-bold text-slate-100">新しいバージョンがあります</span>
@@ -430,4 +444,4 @@
         <button id="btn-pwa-update" class="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-extrabold text-xs shadow-md hover:bg-emerald-400">
           更新する
         </button>
-      `,d.appendChild(t),t.querySelector("#btn-pwa-update").addEventListener("click",()=>{t.remove(),n()})}}}function se(d){const e=new Y,n=te(d);e.state.currentStep!=="start"&&e.state.currentStep!=="rest_option"&&e.state.currentStep!=="history"&&(e.state.currentStep="main");function t(){d.innerHTML="";const s=e.state.currentStep;let i=null;s==="start"?i=Q({store:e,onStart:(c,a)=>{a||(e.state.gameHistory=[],e.state.currentGame=null,e.state.manualRestPlayers=[]),e.setPlayerCount(c),t()}}):s==="main"?i=X({store:e,onConfirmMatch:()=>{const c=e.state.gameHistory.length+1;e.confirmCurrentGame(),n.showToast(`第 ${c} ゲームの組み合わせを確定しました`,"success"),t()},onUndoMatch:()=>{e.undoLastGame()&&(n.showToast("直前の確定を取り消しました","amber"),t())},onGoRestOption:()=>{e.setStep("rest_option"),t()},onGoHistory:()=>{e.setStep("history"),t()},onGoHome:()=>{e.setStep("start"),t()}}):s==="rest_option"?i=Z({store:e,onSaveAndBack:()=>{e.setStep("main"),t()}}):s==="history"&&(i=ee({store:e,onUndo:()=>{e.undoLastGame()&&(n.showToast("直前の確定を取り消しました","amber"),t())},onReset:()=>{e.resetAll(),n.showToast("初期状態にリセットしました","info"),t()},onBack:()=>{e.setStep("main"),t()}})),i&&d.appendChild(i)}return t(),{render:t,toastManager:n}}const ae="modulepreload",re=function(d){return"/"+d},I={},ne=function(e,n,t){let s=Promise.resolve();if(n&&n.length>0){let c=function(l){return Promise.all(l.map(o=>Promise.resolve(o).then(u=>({status:"fulfilled",value:u}),u=>({status:"rejected",reason:u}))))};document.getElementsByTagName("link");const a=document.querySelector("meta[property=csp-nonce]"),m=(a==null?void 0:a.nonce)||(a==null?void 0:a.getAttribute("nonce"));s=c(n.map(l=>{if(l=re(l),l in I)return;I[l]=!0;const o=l.endsWith(".css"),u=o?'[rel="stylesheet"]':"";if(document.querySelector(`link[href="${l}"]${u}`))return;const r=document.createElement("link");if(r.rel=o?"stylesheet":ae,o||(r.as="script"),r.crossOrigin="",r.href=l,m&&r.setAttribute("nonce",m),document.head.appendChild(r),o)return new Promise((p,b)=>{r.addEventListener("load",p),r.addEventListener("error",()=>b(new Error(`Unable to preload CSS for ${l}`)))})}))}function i(c){const a=new Event("vite:preloadError",{cancelable:!0});if(a.payload=c,window.dispatchEvent(a),!a.defaultPrevented)throw c}return s.then(c=>{for(const a of c||[])a.status==="rejected"&&i(a.reason);return e().catch(i)})};function oe(d={}){const{immediate:e=!1,onNeedRefresh:n,onOfflineReady:t,onRegistered:s,onRegisteredSW:i,onRegisterError:c}=d;let a,m,l;const o=async(r=!0)=>{await m,l==null||l()};async function u(){if("serviceWorker"in navigator){if(a=await ne(async()=>{const{Workbox:r}=await import("./workbox-window.prod.es5-BBnX5xw4.js");return{Workbox:r}},[]).then(({Workbox:r})=>new r("/sw.js",{scope:"/",type:"classic"})).catch(r=>{c==null||c(r)}),!a)return;l=()=>{a==null||a.messageSkipWaiting()};{let r=!1;const p=()=>{r=!0,a==null||a.addEventListener("controlling",b=>{b.isUpdate&&window.location.reload()}),n==null||n()};a.addEventListener("installed",b=>{typeof b.isUpdate>"u"?typeof b.isExternal<"u"&&b.isExternal?p():!r&&(t==null||t()):b.isUpdate||t==null||t()}),a.addEventListener("waiting",p)}a.register({immediate:e}).then(r=>{i?i("/sw.js",r):s==null||s(r)}).catch(r=>{c==null||c(r)})}}return m=u(),o}document.addEventListener("DOMContentLoaded",()=>{const d=document.getElementById("app");if(!d)return;const e=se(d),n=oe({onNeedRefresh(){e.toastManager.showUpdatePrompt(()=>{n(!0)})},onOfflineReady(){console.log("App is ready for offline use.")}})});
+      `,d.appendChild(t),t.querySelector("#btn-pwa-update").addEventListener("click",()=>{t.remove(),o()})}}}function oe(d){const e=new ee,o=ne(d);e.state.currentStep!=="start"&&e.state.currentStep!=="rest_option"&&e.state.currentStep!=="history"&&(e.state.currentStep="main");function t(){d.innerHTML="";const s=e.state.currentStep;let i=null;s==="start"?i=te({store:e,onStart:(c,a)=>{a||(e.state.gameHistory=[],e.state.currentGame=null,e.state.manualRestPlayers=[]),e.setPlayerCount(c),t()}}):s==="main"?i=se({store:e,onConfirmMatch:()=>{const c=e.state.gameHistory.length+1;e.confirmCurrentGame(),o.showToast(`第 ${c} ゲームの組み合わせを確定しました`,"success"),t()},onUndoMatch:()=>{e.undoLastGame()&&(o.showToast("直前の確定を取り消しました","amber"),t())},onGoRestOption:()=>{e.setStep("rest_option"),t()},onGoHistory:()=>{e.setStep("history"),t()},onGoHome:()=>{e.setStep("start"),t()}}):s==="rest_option"?i=ae({store:e,onSaveAndBack:()=>{e.setStep("main"),t()}}):s==="history"&&(i=re({store:e,onUndo:()=>{e.undoLastGame()&&(o.showToast("直前の確定を取り消しました","amber"),t())},onReset:()=>{e.resetAll(),o.showToast("初期状態にリセットしました","info"),t()},onBack:()=>{e.setStep("main"),t()}})),i&&d.appendChild(i)}return t(),{render:t,toastManager:o}}const le="modulepreload",ie=function(d){return"/"+d},U={},ce=function(e,o,t){let s=Promise.resolve();if(o&&o.length>0){let c=function(l){return Promise.all(l.map(n=>Promise.resolve(n).then(u=>({status:"fulfilled",value:u}),u=>({status:"rejected",reason:u}))))};document.getElementsByTagName("link");const a=document.querySelector("meta[property=csp-nonce]"),m=(a==null?void 0:a.nonce)||(a==null?void 0:a.getAttribute("nonce"));s=c(o.map(l=>{if(l=ie(l),l in U)return;U[l]=!0;const n=l.endsWith(".css"),u=n?'[rel="stylesheet"]':"";if(document.querySelector(`link[href="${l}"]${u}`))return;const r=document.createElement("link");if(r.rel=n?"stylesheet":le,n||(r.as="script"),r.crossOrigin="",r.href=l,m&&r.setAttribute("nonce",m),document.head.appendChild(r),n)return new Promise((p,b)=>{r.addEventListener("load",p),r.addEventListener("error",()=>b(new Error(`Unable to preload CSS for ${l}`)))})}))}function i(c){const a=new Event("vite:preloadError",{cancelable:!0});if(a.payload=c,window.dispatchEvent(a),!a.defaultPrevented)throw c}return s.then(c=>{for(const a of c||[])a.status==="rejected"&&i(a.reason);return e().catch(i)})};function de(d={}){const{immediate:e=!1,onNeedRefresh:o,onOfflineReady:t,onRegistered:s,onRegisteredSW:i,onRegisterError:c}=d;let a,m,l;const n=async(r=!0)=>{await m,l==null||l()};async function u(){if("serviceWorker"in navigator){if(a=await ce(async()=>{const{Workbox:r}=await import("./workbox-window.prod.es5-BBnX5xw4.js");return{Workbox:r}},[]).then(({Workbox:r})=>new r("/sw.js",{scope:"/",type:"classic"})).catch(r=>{c==null||c(r)}),!a)return;l=()=>{a==null||a.messageSkipWaiting()};{let r=!1;const p=()=>{r=!0,a==null||a.addEventListener("controlling",b=>{b.isUpdate&&window.location.reload()}),o==null||o()};a.addEventListener("installed",b=>{typeof b.isUpdate>"u"?typeof b.isExternal<"u"&&b.isExternal?p():!r&&(t==null||t()):b.isUpdate||t==null||t()}),a.addEventListener("waiting",p)}a.register({immediate:e}).then(r=>{i?i("/sw.js",r):s==null||s(r)}).catch(r=>{c==null||c(r)})}}return m=u(),n}document.addEventListener("DOMContentLoaded",()=>{const d=document.getElementById("app");if(!d)return;const e=oe(d),o=de({onNeedRefresh(){e.toastManager.showUpdatePrompt(()=>{o(!0)})},onOfflineReady(){console.log("App is ready for offline use.")}})});

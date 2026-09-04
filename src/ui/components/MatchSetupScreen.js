@@ -1,7 +1,7 @@
 /**
  * メイン画面コンポーネント (1画面完結型)
  * - 上部：時系列対戦履歴（第1ゲームが一番上、下に追加される）
- * - 中央〜下部：作成・生成された対戦組み合わせのコート表示、手動入れ替え、再抽選
+ * - 中央〜下部：作成・生成された対戦組み合わせのコート表示、手動入れ替え（出場者・休憩者どちらもタップで交代可能）、再抽選
  * - 最下部：「この組み合わせで確定」ボタン & 「直前の確定を取り消す」ボタン
  */
 import { selectBestCombination, makeCardKey } from '../../models/algorithm.js';
@@ -100,7 +100,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             </h3>
           </div>
           <span class="text-[11px] text-emerald-300 bg-emerald-950/80 border border-emerald-800 px-2.5 py-0.5 rounded-full">
-            💡 選手2人タップで位置交換
+            💡 選手2人タップで交代・入れ替え
           </span>
         </div>
 
@@ -134,16 +134,22 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           </div>
         </div>
 
-        <!-- Rest & Options Info Panel -->
-        <div class="glass-panel rounded-2xl p-4 text-xs space-y-2">
+        <!-- Rest & Options Info Panel (with clickable Rest Player Buttons) -->
+        <div class="glass-panel rounded-2xl p-4 text-xs space-y-3">
           <div class="flex items-center justify-between">
-            <span class="font-bold text-slate-300">休憩プレイヤー:</span>
-            <span class="font-extrabold text-amber-400 text-sm">
-              ${restPlayers && restPlayers.length > 0 ? restPlayers.join(' 、 ') : 'なし'}
-            </span>
+            <span class="font-bold text-slate-300">休憩プレイヤー (タップで出場者と交代):</span>
           </div>
+
+          ${restPlayers && restPlayers.length > 0 ? `
+            <div class="flex items-center space-x-3 py-1">
+              ${restPlayers.map((playerNum, idx) => renderRestPlayerCard(playerNum, `rest-${idx}`)).join('')}
+            </div>
+          ` : `
+            <div class="text-slate-400 italic text-xs">全員出場中</div>
+          `}
+
           ${maxRestCount > 0 ? `
-            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/60">
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-800/60">
               <span>手動固定：<strong class="text-amber-300">${manualStr}</strong></span>
               <span>自動補充：<strong class="text-teal-300">${autoStr}</strong></span>
               <button id="btn-open-rest-option" class="text-amber-400 hover:underline font-bold ml-2">
@@ -169,7 +175,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             id="btn-clear-swap"
             class="py-3 rounded-xl font-bold text-xs bg-slate-800/90 text-slate-300 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all"
           >
-            位置選択を解除
+            選択状態を解除
           </button>
         </div>
       </div>
@@ -213,6 +219,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       </div>
     `;
 
+    // 出場選手カードレンダラー
     function renderPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       return `
@@ -229,6 +236,25 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       `;
     }
 
+    // 休憩選手カードレンダラー
+    function renderRestPlayerCard(playerNum, slotId) {
+      const isSelected = selectedPlayersForSwap.includes(slotId);
+      return `
+        <button
+          data-slot="${slotId}"
+          class="player-slot px-4 py-2 rounded-xl font-bold text-sm flex items-center space-x-1.5 transition-all duration-200 shadow-sm ${
+            isSelected
+              ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse'
+              : 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95'
+          }"
+        >
+          <span class="text-xs text-slate-400 font-normal">休</span>
+          <span class="font-black text-base">${playerNum}</span>
+        </button>
+      `;
+    }
+
+    // タップイベント登録（出場者・休憩者統合）
     container.querySelectorAll('.player-slot').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const slot = e.currentTarget.dataset.slot;
@@ -246,19 +272,29 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       });
     });
 
+    // プレイヤー入れ替え（出場者・休憩者自由交代対応）
     function swapPlayers(slotA, slotB) {
       const getVal = (slot) => {
         if (slot === 't1-0') return currentGame.team1[0];
         if (slot === 't1-1') return currentGame.team1[1];
         if (slot === 't2-0') return currentGame.team2[0];
         if (slot === 't2-1') return currentGame.team2[1];
+        if (slot.startsWith('rest-')) {
+          const idx = parseInt(slot.replace('rest-', ''), 10);
+          return currentGame.restPlayers[idx];
+        }
       };
 
       const setVal = (slot, val) => {
         if (slot === 't1-0') currentGame.team1[0] = val;
-        if (slot === 't1-1') currentGame.team1[1] = val;
-        if (slot === 't2-0') currentGame.team2[0] = val;
-        if (slot === 't2-1') currentGame.team2[1] = val;
+        else if (slot === 't1-1') currentGame.team1[1] = val;
+        else if (slot === 't2-0') currentGame.team2[0] = val;
+        else if (slot === 't2-1') currentGame.team2[1] = val;
+        else if (slot.startsWith('rest-')) {
+          const idx = parseInt(slot.replace('rest-', ''), 10);
+          currentGame.restPlayers[idx] = val;
+          currentGame.restPlayers.sort((a, b) => a - b);
+        }
       };
 
       const valA = getVal(slotA);
@@ -305,7 +341,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       });
     }
 
-    // 確認ダイアログなしで即座に取り消し実行
     const undoMainBtn = container.querySelector('#btn-undo-main');
     if (undoMainBtn) {
       undoMainBtn.addEventListener('click', () => {
