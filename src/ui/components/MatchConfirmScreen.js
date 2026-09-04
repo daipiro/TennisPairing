@@ -3,7 +3,7 @@
  */
 import { selectBestCombination, makeCardKey } from '../../models/algorithm.js';
 
-export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onGoHistory }) {
+export function renderMatchConfirmScreen({ store, onConfirm, onGoRestOption, onGoHistory }) {
   let currentGame = { ...store.state.currentGame };
   let selectedPlayersForSwap = []; // 手動入れ替え用にタップ選択されたインデックス/位置
 
@@ -20,11 +20,11 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
     container.innerHTML = `
       <!-- Top Header -->
       <div class="flex items-center justify-between border-b border-slate-800/80 pb-4">
-        <button id="btn-reselect-rest" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800/80 border border-slate-700/60 hover:bg-slate-700 transition-colors flex items-center space-x-1">
+        <button id="btn-reselect-rest" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-300 bg-slate-800/80 border border-slate-700/60 hover:bg-slate-700 transition-colors flex items-center space-x-1">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
           </svg>
-          <span>休憩者選び直し</span>
+          <span>休憩指定オプション</span>
         </button>
 
         <div class="text-center">
@@ -88,8 +88,8 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
           </div>
           ${restPlayers && restPlayers.length > 0 ? `
             <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/60">
-              <span>手動指定：<strong class="text-amber-300">${manualStr}</strong></span>
-              <span>自動選択：<strong class="text-teal-300">${autoStr}</strong></span>
+              <span>手動固定：<strong class="text-amber-300">${manualStr}</strong></span>
+              <span>自動補充：<strong class="text-teal-300">${autoStr}</strong></span>
             </div>
           ` : ''}
         </div>
@@ -128,7 +128,6 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
       </div>
     `;
 
-    // プレイヤーカード単体のレンダリングヘルパー
     function renderPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       return `
@@ -145,7 +144,6 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
       `;
     }
 
-    // イベントリスナー設定
     container.querySelectorAll('.player-slot').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const slot = e.currentTarget.dataset.slot;
@@ -155,7 +153,6 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
         } else {
           selectedPlayersForSwap.push(slot);
           if (selectedPlayersForSwap.length === 2) {
-            // 2人選ばれたら入れ替え
             swapPlayers(selectedPlayersForSwap[0], selectedPlayersForSwap[1]);
             selectedPlayersForSwap = [];
           }
@@ -164,7 +161,6 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
       });
     });
 
-    // 手動位置入れ替え関数
     function swapPlayers(slotA, slotB) {
       const getVal = (slot) => {
         if (slot === 't1-0') return currentGame.team1[0];
@@ -186,18 +182,15 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
       setVal(slotA, valB);
       setVal(slotB, valA);
 
-      // キーの更新
       currentGame.lastDisplayedKey = makeCardKey(currentGame.team1, currentGame.team2);
     }
 
-    // 再抽選ボタン (休憩者は固定でペア/対戦のみ再抽選)
     const rerollBtn = container.querySelector('#btn-reroll');
     if (rerollBtn) {
       rerollBtn.addEventListener('click', () => {
         const active4 = [...currentGame.team1, ...currentGame.team2];
         const lastDisplayed = currentGame.lastDisplayedKey || makeCardKey(currentGame.team1, currentGame.team2);
 
-        // アルゴリズム適用（直前表示ペナルティ含む）
         const nextComb = selectBestCombination(active4, store.state.gameHistory, lastDisplayed);
 
         currentGame.team1 = nextComb.team1;
@@ -209,7 +202,6 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
       });
     }
 
-    // 選択解除ボタン
     const clearBtn = container.querySelector('#btn-clear-swap');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
@@ -218,7 +210,6 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
       });
     }
 
-    // この組み合わせで確定ボタン
     const confirmBtn = container.querySelector('#btn-confirm');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', () => {
@@ -228,7 +219,7 @@ export function renderMatchConfirmScreen({ store, onConfirm, onReselectRest, onG
     }
 
     const reselectRestBtn = container.querySelector('#btn-reselect-rest');
-    if (reselectRestBtn) reselectRestBtn.addEventListener('click', onReselectRest);
+    if (reselectRestBtn) reselectRestBtn.addEventListener('click', onGoRestOption);
 
     const historyBtn = container.querySelector('#btn-history');
     if (historyBtn) historyBtn.addEventListener('click', onGoHistory);

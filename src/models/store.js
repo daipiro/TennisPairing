@@ -12,20 +12,10 @@ export class AppStore {
   getDefaultState() {
     return {
       playerCount: 6, // 初期値 6人
-      currentStep: 'start', // 'start' | 'rest_selection' | 'match_confirm' | 'history'
+      currentStep: 'start', // 'start' | 'match_setup' | 'rest_option' | 'match_confirm' | 'history'
       gameHistory: [], // 確定ゲーム履歴
+      manualRestPlayers: [], // オプションで保持される手動指定休憩者 (例: [1])
       currentGame: null, // 現在検討中のゲーム
-      /*
-        currentGame: {
-          gameNumber: 1,
-          restPlayers: [5, 6],
-          manualRestPlayers: [5],
-          autoRestPlayers: [6],
-          team1: [1, 2],
-          team2: [3, 4],
-          lastDisplayedKey: '1-2_vs_3-4'
-        }
-      */
     };
   }
 
@@ -33,7 +23,11 @@ export class AppStore {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        if (!parsed.manualRestPlayers) {
+          parsed.manualRestPlayers = [];
+        }
+        return parsed;
       }
     } catch (e) {
       console.error('Failed to load state from localStorage:', e);
@@ -52,7 +46,19 @@ export class AppStore {
   // 参加人数選択 & ゲーム新規開始
   setPlayerCount(count) {
     this.state.playerCount = count;
-    this.state.currentStep = 'rest_selection';
+    // 人数制限を超えている手動休憩者をフィルタリング
+    const maxRest = count - 4;
+    this.state.manualRestPlayers = (this.state.manualRestPlayers || [])
+      .filter(p => p <= count)
+      .slice(0, Math.max(0, maxRest));
+    
+    this.state.currentStep = 'match_setup';
+    this.saveState();
+  }
+
+  // 手動指定休憩者のオプション設定（選択状態の保持）
+  setManualRestPlayers(players) {
+    this.state.manualRestPlayers = [...players].sort((a, b) => a - b);
     this.saveState();
   }
 
@@ -83,8 +89,8 @@ export class AppStore {
 
     this.state.gameHistory.push(confirmedRecord);
     this.state.currentGame = null;
-    // 次のゲームの休憩者選択画面へ
-    this.state.currentStep = 'rest_selection';
+    // 次のゲームの準備画面へ
+    this.state.currentStep = 'match_setup';
     this.saveState();
   }
 

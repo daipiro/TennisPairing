@@ -3,7 +3,8 @@
  */
 import { AppStore } from './models/store.js';
 import { renderStartScreen } from './ui/components/StartScreen.js';
-import { renderRestSelectionScreen } from './ui/components/RestSelectionScreen.js';
+import { renderMatchSetupScreen } from './ui/components/MatchSetupScreen.js';
+import { renderRestOptionScreen } from './ui/components/RestOptionScreen.js';
 import { renderMatchConfirmScreen } from './ui/components/MatchConfirmScreen.js';
 import { renderHistoryScreen } from './ui/components/HistoryScreen.js';
 import { createToastManager } from './ui/components/Toast.js';
@@ -11,6 +12,11 @@ import { createToastManager } from './ui/components/Toast.js';
 export function initApp(rootElement) {
   const store = new AppStore();
   const toastManager = createToastManager(rootElement);
+
+  // 以前のセッションデータ等で currentStep が古かった場合の補正
+  if (store.state.currentStep === 'rest_selection') {
+    store.state.currentStep = 'match_setup';
+  }
 
   function render() {
     rootElement.innerHTML = '';
@@ -25,17 +31,22 @@ export function initApp(rootElement) {
           if (!isResume) {
             store.state.gameHistory = [];
             store.state.currentGame = null;
+            store.state.manualRestPlayers = [];
           }
           store.setPlayerCount(count);
           render();
         }
       });
-    } else if (step === 'rest_selection') {
-      viewComponent = renderRestSelectionScreen({
+    } else if (step === 'match_setup') {
+      viewComponent = renderMatchSetupScreen({
         store,
         onCreateMatch: (currentGameData) => {
           store.setCurrentGame(currentGameData);
           store.setStep('match_confirm');
+          render();
+        },
+        onGoRestOption: () => {
+          store.setStep('rest_option');
           render();
         },
         onGoHistory: () => {
@@ -47,9 +58,22 @@ export function initApp(rootElement) {
           render();
         }
       });
+    } else if (step === 'rest_option') {
+      viewComponent = renderRestOptionScreen({
+        store,
+        onSaveAndBack: () => {
+          // 直前の画面が match_confirm だった場合はそこへ戻すか、match_setup へ
+          if (store.state.currentGame) {
+            store.setStep('match_confirm');
+          } else {
+            store.setStep('match_setup');
+          }
+          render();
+        }
+      });
     } else if (step === 'match_confirm') {
       if (!store.state.currentGame) {
-        store.setStep('rest_selection');
+        store.setStep('match_setup');
         render();
         return;
       }
@@ -61,8 +85,8 @@ export function initApp(rootElement) {
           toastManager.showToast(`第 ${gameNum} ゲームの組み合わせを確定しました`, 'success');
           render();
         },
-        onReselectRest: () => {
-          store.setStep('rest_selection');
+        onGoRestOption: () => {
+          store.setStep('rest_option');
           render();
         },
         onGoHistory: () => {
@@ -86,11 +110,10 @@ export function initApp(rootElement) {
           render();
         },
         onBack: () => {
-          // 直前の有効なステップへ
           if (store.state.currentGame) {
             store.setStep('match_confirm');
           } else {
-            store.setStep('rest_selection');
+            store.setStep('match_setup');
           }
           render();
         }
