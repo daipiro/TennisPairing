@@ -41,8 +41,8 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
 
           <div class="grid grid-cols-2 gap-2.5">
             ${Array.from({ length: playerCount }, (_, i) => i + 1).map(p => {
-              const stat = stats[p] || { playCount: 0, restCount: 0 };
-              return `
+      const stat = stats[p] || { playCount: 0, restCount: 0 };
+      return `
                 <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-2xl flex items-center justify-between">
                   <div class="flex items-center space-x-2">
                     <span class="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm flex items-center justify-center border border-emerald-500/30">
@@ -56,7 +56,7 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         </div>
 
