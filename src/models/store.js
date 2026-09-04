@@ -1,21 +1,26 @@
 /**
  * テニス乱数表 - ローカルストレージ連動ステート管理
  */
+import { determineRestPlayers, selectBestCombination } from './algorithm.js';
 
 const STORAGE_KEY = 'tennis_pairing_app_state_v1';
 
 export class AppStore {
   constructor() {
     this.state = this.loadState();
+    // もしゲームが開始されていて currentGame がなければ初期生成する
+    if (this.state.currentStep !== 'start' && !this.state.currentGame) {
+      this.generateNextCurrentGame();
+    }
   }
 
   getDefaultState() {
     return {
       playerCount: 6, // 初期値 6人
-      currentStep: 'start', // 'start' | 'match_setup' | 'rest_option' | 'match_confirm' | 'history'
+      currentStep: 'start', // 'start' | 'main' | 'rest_option' | 'history'
       gameHistory: [], // 確定ゲーム履歴
       manualRestPlayers: [], // オプションで保持される手動指定休憩者 (例: [1])
-      currentGame: null, // 現在検討中のゲーム
+      currentGame: null, // 現在検討・表示中のゲーム
     };
   }
 
@@ -24,8 +29,9 @@ export class AppStore {
       const data = localStorage.getItem(STORAGE_KEY);
       if (data) {
         const parsed = JSON.parse(data);
-        if (!parsed.manualRestPlayers) {
-          parsed.manualRestPlayers = [];
+        if (!parsed.manualRestPlayers) parsed.manualRestPlayers = [];
+        if (parsed.currentStep === 'match_setup' || parsed.currentStep === 'match_confirm') {
+          parsed.currentStep = 'main';
         }
         return parsed;
       }
@@ -46,19 +52,49 @@ export class AppStore {
   // 参加人数選択 & ゲーム新規開始
   setPlayerCount(count) {
     this.state.playerCount = count;
-    // 人数制限を超えている手動休憩者をフィルタリング
     const maxRest = count - 4;
     this.state.manualRestPlayers = (this.state.manualRestPlayers || [])
       .filter(p => p <= count)
       .slice(0, Math.max(0, maxRest));
     
-    this.state.currentStep = 'match_setup';
+    this.state.currentGame = null;
+    this.generateNextCurrentGame();
+    this.state.currentStep = 'main';
     this.saveState();
   }
 
-  // 手動指定休憩者のオプション設定（選択状態の保持）
+  // 次のゲームの組み合わせを生成して currentGame にセット
+  generateNextCurrentGame() {
+    const playerCount = this.state.playerCount;
+    const gameNumber = this.state.gameHistory.length + 1;
+
+    const { restPlayers, manualRestPlayers, autoRestPlayers } = determineRestPlayers(playerCount, this.state.manualRestPlayers || []);
+
+    const activePlayers = [];
+    for (let p = 1; p <= playerCount; p++) {
+      if (!restPlayers.includes(p)) activePlayers.push(p);
+    }
+
+    const bestComb = selectBestCombination(activePlayers, this.state.gameHistory);
+
+    this.state.currentGame = {
+      gameNumber,
+      restPlayers,
+      manualRestPlayers,
+      autoRestPlayers,
+      team1: bestComb.team1,
+      team2: bestComb.team2,
+      lastDisplayedKey: bestComb.key
+    };
+    this.saveState();
+    return this.state.currentGame;
+  }
+
+  // 手動指定休憩者のオプション設定（選択状態の保持 & 次のゲーム再作成）
   setManualRestPlayers(players) {
     this.state.manualRestPlayers = [...players].sort((a, b) => a - b);
+    // オプションが変更されたら現在の未確定ゲームを新しいオプションに基づいて再計算
+    this.generateNextCurrentGame();
     this.saveState();
   }
 
@@ -68,13 +104,13 @@ export class AppStore {
     this.saveState();
   }
 
-  // 現在検討中ゲームの設定
+  // 現在検討中ゲームの更新
   setCurrentGame(gameData) {
     this.state.currentGame = gameData;
     this.saveState();
   }
 
-  // 組み合わせ確定 (8.3節)
+  // 組み合わせ確定
   confirmCurrentGame() {
     if (!this.state.currentGame) return;
 
@@ -89,19 +125,19 @@ export class AppStore {
 
     this.state.gameHistory.push(confirmedRecord);
     this.state.currentGame = null;
-    // 次のゲームの準備画面へ
-    this.state.currentStep = 'match_setup';
+    
+    // 即座に次のゲームの組み合わせを自動生成！
+    this.generateNextCurrentGame();
+    this.state.currentStep = 'main';
     this.saveState();
   }
 
-  // 直前の確定取り消し (8.4節)
+  // 直前の確定取り消し
   undoLastGame() {
     if (this.state.gameHistory.length === 0) return false;
 
-    // 最新の確定ゲームを取り出す
     const lastGame = this.state.gameHistory.pop();
 
-    // 復元して未確定状態にする
     const manualRest = lastGame.manuallySelectedRestPlayers || [];
     const allRest = lastGame.restPlayers || [];
     const autoRest = allRest.filter(p => !manualRest.includes(p));
@@ -116,7 +152,7 @@ export class AppStore {
       lastDisplayedKey: null
     };
 
-    this.state.currentStep = 'match_confirm';
+    this.state.currentStep = 'main';
     this.saveState();
     return true;
   }
@@ -127,7 +163,7 @@ export class AppStore {
     this.saveState();
   }
 
-  // 各参加者の出場・休憩回数統計の取得
+  // 統計データ取得
   getStats() {
     const stats = {};
     const count = this.state.playerCount;
