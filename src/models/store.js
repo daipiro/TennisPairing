@@ -63,19 +63,35 @@ export class AppStore {
     this.saveState();
   }
 
-  // 次のゲームの組み合わせを生成して currentGame にセット
-  generateNextCurrentGame() {
+  /**
+   * 次のゲームの組み合わせ（休憩者選出 + 4人のペア）を生成して currentGame にセット
+   * @param {string|null} lastDisplayedKey - 再抽選時の直前カードキー
+   */
+  generateNextCurrentGame(lastDisplayedKey = null) {
     const playerCount = this.state.playerCount;
     const gameNumber = this.state.gameHistory.length + 1;
 
-    const { restPlayers, manualRestPlayers, autoRestPlayers } = determineRestPlayers(playerCount, this.state.manualRestPlayers || []);
+    // 直前の確定ゲームの休憩者を特定
+    let lastGameRestPlayers = [];
+    if (this.state.gameHistory.length > 0) {
+      lastGameRestPlayers = this.state.gameHistory[this.state.gameHistory.length - 1].restPlayers || [];
+    }
 
+    // 休憩者の決定（直前休憩者は優先的に出場させる）
+    const { restPlayers, manualRestPlayers, autoRestPlayers } = determineRestPlayers(
+      playerCount,
+      this.state.manualRestPlayers || [],
+      lastGameRestPlayers
+    );
+
+    // 出場者4人の選出
     const activePlayers = [];
     for (let p = 1; p <= playerCount; p++) {
       if (!restPlayers.includes(p)) activePlayers.push(p);
     }
 
-    const bestComb = selectBestCombination(activePlayers, this.state.gameHistory);
+    // 組み合わせのアルゴリズム決定
+    const bestComb = selectBestCombination(activePlayers, this.state.gameHistory, lastDisplayedKey);
 
     this.state.currentGame = {
       gameNumber,
@@ -88,6 +104,12 @@ export class AppStore {
     };
     this.saveState();
     return this.state.currentGame;
+  }
+
+  // 再抽選（手動固定の休憩者は保持し、残りの休憩者・出場者・ペア構成をまるごと再選出）
+  rerollCurrentGame() {
+    const lastDisplayedKey = this.state.currentGame?.lastDisplayedKey || null;
+    return this.generateNextCurrentGame(lastDisplayedKey);
   }
 
   // 手動固定休憩者のトグル切り替え（メイン画面インライン用）

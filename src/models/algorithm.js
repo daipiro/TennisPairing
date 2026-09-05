@@ -17,25 +17,20 @@ export function getPossibleCombinations(players4) {
   ];
 
   return patterns.map(p => {
-    // チーム内は昇順
     const t1 = [...p.team1].sort((x, y) => x - y);
     const t2 = [...p.team2].sort((x, y) => x - y);
 
-    // チーム間も昇順でユニークキー化
     const [first, second] = [t1, t2].sort((tA, tB) => tA[0] - tB[0] || tA[1] - tB[1]);
     const key = `${first[0]}-${first[1]}_vs_${second[0]}-${second[1]}`;
 
     return {
-      team1: p.team1, // 元の順番を維持
+      team1: p.team1,
       team2: p.team2,
       key
     };
   });
 }
 
-/**
- * ペアおよび対戦カードのキー生成用ユーティリティ
- */
 export function makePairKey(p1, p2) {
   return p1 < p2 ? `${p1}-${p2}` : `${p2}-${p1}`;
 }
@@ -49,7 +44,6 @@ export function makeCardKey(team1, team2) {
 
 /**
  * 過去履歴からの集計データを求める
- * @param {Array} history 
  */
 export function aggregateHistory(history) {
   const pairCounts = {};
@@ -72,13 +66,11 @@ export function aggregateHistory(history) {
 
   for (const game of history) {
     const { team1, team2 } = game;
-    // ペア集計
     const pair1Key = makePairKey(team1[0], team1[1]);
     const pair2Key = makePairKey(team2[0], team2[1]);
     pairCounts[pair1Key] = (pairCounts[pair1Key] || 0) + 1;
     pairCounts[pair2Key] = (pairCounts[pair2Key] || 0) + 1;
 
-    // 対戦相手集計 (team1 vs team2)
     for (const p1 of team1) {
       for (const p2 of team2) {
         const oppKey = makePairKey(p1, p2);
@@ -86,7 +78,6 @@ export function aggregateHistory(history) {
       }
     }
 
-    // 対戦カード集計
     const cardKey = makeCardKey(team1, team2);
     cardCounts[cardKey] = (cardCounts[cardKey] || 0) + 1;
   }
@@ -101,20 +92,16 @@ export function calculatePenaltyScore(combination, history, lastDisplayedKey = n
   const { team1, team2, key } = combination;
   const { getPair, getOpponent, getCard } = aggregateHistory(history);
 
-  // 1. ペア重複回数
   const pairRepetition = getPair(team1[0], team1[1]) + getPair(team2[0], team2[1]);
 
-  // 2. 対戦相手重複回数
   const oppRepetition = 
     getOpponent(team1[0], team2[0]) +
     getOpponent(team1[0], team2[1]) +
     getOpponent(team1[1], team2[0]) +
     getOpponent(team1[1], team2[1]);
 
-  // 3. 同一対戦カード回数
   const sameCardCount = getCard(key);
 
-  // 4. 直前ゲームとの比較
   let lastGameSamePairCount = 0;
   let lastGameSameCard = false;
 
@@ -135,10 +122,8 @@ export function calculatePenaltyScore(combination, history, lastDisplayedKey = n
     }
   }
 
-  // 5. 再抽選で直前表示と同一
   const isSameAsLastDisplayed = lastDisplayedKey && (key === lastDisplayedKey);
 
-  // 要件定義書のスコア計算式
   const score =
     (pairRepetition * 100) +
     (oppRepetition * 10) +
@@ -161,11 +146,12 @@ export function calculatePenaltyScore(combination, history, lastDisplayedKey = n
 }
 
 /**
- * 休憩者を決定する（手動指定 + ランダム不足補充）
+ * 休憩者を決定する（手動指定 + 直前休憩者の優先プレイロジック適用）
  * @param {number} playerCount 
- * @param {number[]} manualRestPlayers 
+ * @param {number[]} manualRestPlayers - 手動で固定指定された休憩者
+ * @param {number[]} lastGameRestPlayers - 直前の確定ゲームで休憩していたプレイヤー
  */
-export function determineRestPlayers(playerCount, manualRestPlayers = []) {
+export function determineRestPlayers(playerCount, manualRestPlayers = [], lastGameRestPlayers = []) {
   const targetRestCount = playerCount - 4;
   if (targetRestCount <= 0) {
     return {
@@ -187,7 +173,7 @@ export function determineRestPlayers(playerCount, manualRestPlayers = []) {
     };
   }
 
-  // 残りのプレイヤー候補
+  // 手動固定指定されていない残り候補プレイヤー
   const remainingCandidates = [];
   for (let i = 1; i <= playerCount; i++) {
     if (!manualSet.has(i)) {
@@ -195,14 +181,35 @@ export function determineRestPlayers(playerCount, manualRestPlayers = []) {
     }
   }
 
-  // ランダムに autoNeeded 人選出 (Fisher-Yates)
-  const shuffled = [...remainingCandidates];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  // 直前ゲームで休憩していたプレイヤーは「優先的にプレイ」させるため、
+  // 自動選出の休憩者候補からできる限り除外し、直前出場者を優先して休憩者候補にする。
+  const lastRestSet = new Set(lastGameRestPlayers);
+  const playedLastGame = remainingCandidates.filter(p => !lastRestSet.has(p));
+  const restedLastGame = remainingCandidates.filter(p => lastRestSet.has(p));
+
+  // シャッフル関数 (Fisher-Yates)
+  const shuffle = (arr) => {
+    const res = [...arr];
+    for (let i = res.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [res[i], res[j]] = [res[j], res[i]];
+    }
+    return res;
+  };
+
+  const shuffledPlayed = shuffle(playedLastGame);
+  const shuffledRested = shuffle(restedLastGame);
+
+  // まず直前ゲームに出場していた人から休憩者を選ぶ
+  let selectedAutoRest = shuffledPlayed.slice(0, autoNeeded);
+
+  // もし不足分があれば、直前ゲームで休憩していた人からも補填する
+  if (selectedAutoRest.length < autoNeeded) {
+    const neededMore = autoNeeded - selectedAutoRest.length;
+    selectedAutoRest = [...selectedAutoRest, ...shuffledRested.slice(0, neededMore)];
   }
 
-  const autoRestPlayers = shuffled.slice(0, autoNeeded).sort((a, b) => a - b);
+  const autoRestPlayers = selectedAutoRest.sort((a, b) => a - b);
   const restPlayers = [...Array.from(manualSet), ...autoRestPlayers].sort((a, b) => a - b);
 
   return {
@@ -214,9 +221,6 @@ export function determineRestPlayers(playerCount, manualRestPlayers = []) {
 
 /**
  * 最良の組み合わせ候補を選出する (要件定義書 7.3節)
- * @param {number[]} players4 - 出場する4人のプレイヤー番号
- * @param {Array} history - 確定済み履歴
- * @param {string|null} lastDisplayedKey - 再抽選時の直前表示カードキー
  */
 export function selectBestCombination(players4, history, lastDisplayedKey = null) {
   const combinations = getPossibleCombinations(players4);
@@ -226,14 +230,10 @@ export function selectBestCombination(players4, history, lastDisplayedKey = null
     return { ...comb, score, breakdown };
   });
 
-  // 最小スコアを求める
   const minScore = Math.min(...scoredCombinations.map(c => c.score));
-
-  // 最小スコアから一定範囲内 (同等または +20 差以内) の候補を抽出
   const threshold = minScore + 20;
   const bestCandidates = scoredCombinations.filter(c => c.score <= threshold);
 
-  // 抽出候補からランダムに1つ選択
   const selectedIndex = Math.floor(Math.random() * bestCandidates.length);
   return bestCandidates[selectedIndex];
 }

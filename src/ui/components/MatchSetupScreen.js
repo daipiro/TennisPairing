@@ -2,10 +2,10 @@
  * メイン画面コンポーネント (1画面完結型)
  * - 上部：時系列対戦履歴（第1ゲームが一番上、下に追加される）
  * - 中央上部：休憩者の手動選択・固定設定（組み合わせの上にインライン表示）
- * - 中央〜下部：作成・生成された対戦組み合わせ（プレイヤーを横一列表示）、交代操作、再抽選
+ * - 中央〜下部：作成・生成された対戦組み合わせ（プレイヤーを横一列表示）、交代操作、再抽選（手動固定以外を再選出）
  * - 最下部：「この組み合わせで確定」ボタン & 「直前の確定を取り消す」ボタン
  */
-import { selectBestCombination, makeCardKey } from '../../models/algorithm.js';
+import { makeCardKey } from '../../models/algorithm.js';
 
 export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoHistory, onGoHome }) {
   const playerCount = store.state.playerCount;
@@ -144,9 +144,9 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           </div>
         </div>
 
-        <!-- Horizontal Court Container (Clean Horizontal Layout without MATCH LAYOUT / TEAM A / TEAM B labels) -->
+        <!-- Horizontal Court Container -->
         <div class="court-card rounded-3xl p-5 border shadow-2xl">
-          <!-- Horizontal Players Row: [ Player A1 ] [ Player A2 ]  VS  [ Player B1 ] [ Player B2 ] -->
+          <!-- Horizontal Players Row: [ Team A (2) ]  VS  [ Team B (2) ] -->
           <div class="flex items-center justify-around py-2 px-1">
             <!-- Team A Players -->
             <div class="flex space-x-2">
@@ -169,7 +169,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           </div>
         </div>
 
-        <!-- Rest Players Info Panel (Without Title Header Label) -->
+        <!-- Rest Players Info Panel -->
         <div class="glass-panel rounded-2xl p-3.5 text-xs space-y-2">
           ${restPlayers && restPlayers.length > 0 ? `
             <div class="flex items-center space-x-2">
@@ -187,7 +187,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           ` : ''}
         </div>
 
-        <!-- Reroll Button -->
+        <!-- Reroll Button (Re-evaluates rest players as well except manual fixed ones) -->
         <button
           id="btn-reroll"
           class="w-full py-3.5 rounded-xl font-bold text-xs bg-slate-800/90 text-emerald-400 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
@@ -195,7 +195,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
-          <span>組み合わせを再抽選</span>
+          <span>組み合わせを再抽選 (休憩者含む)</span>
         </button>
       </div>
 
@@ -321,20 +321,12 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       store.setCurrentGame(currentGame);
     }
 
+    // 再抽選ボタン（手動固定以外は休憩者の選出も含めて再抽選する）
     const rerollBtn = container.querySelector('#btn-reroll');
     if (rerollBtn) {
       rerollBtn.addEventListener('click', () => {
-        const active4 = [...currentGame.team1, ...currentGame.team2];
-        const lastDisplayed = currentGame.lastDisplayedKey || makeCardKey(currentGame.team1, currentGame.team2);
-
-        const nextComb = selectBestCombination(active4, store.state.gameHistory, lastDisplayed);
-
-        currentGame.team1 = nextComb.team1;
-        currentGame.team2 = nextComb.team2;
-        currentGame.lastDisplayedKey = nextComb.key;
+        store.rerollCurrentGame();
         selectedPlayersForSwap = [];
-
-        store.setCurrentGame(currentGame);
         updateUI();
       });
     }
