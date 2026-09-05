@@ -8,8 +8,10 @@ const STORAGE_KEY = 'tennis_pairing_app_state_v1';
 export class AppStore {
   constructor() {
     this.state = this.loadState();
-    // もしゲームが開始されていて currentGame がなければ初期生成する
-    if (this.state.currentStep !== 'start' && !this.state.currentGame) {
+    if (this.state.currentStep !== 'start') {
+      this.state.currentStep = 'main';
+    }
+    if (!this.state.currentGame) {
       this.generateNextCurrentGame();
     }
   }
@@ -17,7 +19,7 @@ export class AppStore {
   getDefaultState() {
     return {
       playerCount: 6, // 初期値 6人
-      currentStep: 'start', // 'start' | 'main' | 'rest_option' | 'history'
+      currentStep: 'start', // 'start' | 'main' | 'history'
       gameHistory: [], // 確定ゲーム履歴
       manualRestPlayers: [], // オプションで保持される手動指定休憩者 (例: [1])
       currentGame: null, // 現在検討・表示中のゲーム
@@ -30,9 +32,7 @@ export class AppStore {
       if (data) {
         const parsed = JSON.parse(data);
         if (!parsed.manualRestPlayers) parsed.manualRestPlayers = [];
-        if (parsed.currentStep === 'match_setup' || parsed.currentStep === 'match_confirm') {
-          parsed.currentStep = 'main';
-        }
+        parsed.currentStep = parsed.currentStep === 'start' ? 'start' : 'main';
         return parsed;
       }
     } catch (e) {
@@ -90,10 +90,20 @@ export class AppStore {
     return this.state.currentGame;
   }
 
-  // 手動指定休憩者のオプション設定（選択状態の保持 & 次のゲーム再作成）
-  setManualRestPlayers(players) {
-    this.state.manualRestPlayers = [...players].sort((a, b) => a - b);
-    // オプションが変更されたら現在の未確定ゲームを新しいオプションに基づいて再計算
+  // 手動固定休憩者のトグル切り替え（メイン画面インライン用）
+  toggleManualRestPlayer(playerNum) {
+    const maxRestCount = this.state.playerCount - 4;
+    let list = [...(this.state.manualRestPlayers || [])];
+
+    if (list.includes(playerNum)) {
+      list = list.filter(p => p !== playerNum);
+    } else {
+      if (list.length < maxRestCount) {
+        list.push(playerNum);
+      }
+    }
+
+    this.state.manualRestPlayers = list.sort((a, b) => a - b);
     this.generateNextCurrentGame();
     this.saveState();
   }
@@ -126,7 +136,6 @@ export class AppStore {
     this.state.gameHistory.push(confirmedRecord);
     this.state.currentGame = null;
     
-    // 即座に次のゲームの組み合わせを自動生成！
     this.generateNextCurrentGame();
     this.state.currentStep = 'main';
     this.saveState();

@@ -4,7 +4,6 @@
 import { AppStore } from './models/store.js';
 import { renderStartScreen } from './ui/components/StartScreen.js';
 import { renderMatchSetupScreen } from './ui/components/MatchSetupScreen.js';
-import { renderRestOptionScreen } from './ui/components/RestOptionScreen.js';
 import { renderHistoryScreen } from './ui/components/HistoryScreen.js';
 import { createToastManager } from './ui/components/Toast.js';
 
@@ -12,7 +11,7 @@ export function initApp(rootElement) {
   const store = new AppStore();
   const toastManager = createToastManager(rootElement);
 
-  if (store.state.currentStep !== 'start' && store.state.currentStep !== 'rest_option' && store.state.currentStep !== 'history') {
+  if (store.state.currentStep !== 'start' && store.state.currentStep !== 'history') {
     store.state.currentStep = 'main';
   }
 
@@ -51,24 +50,12 @@ export function initApp(rootElement) {
             render();
           }
         },
-        onGoRestOption: () => {
-          store.setStep('rest_option');
-          render();
-        },
         onGoHistory: () => {
           store.setStep('history');
           render();
         },
         onGoHome: () => {
           store.setStep('start');
-          render();
-        }
-      });
-    } else if (step === 'rest_option') {
-      viewComponent = renderRestOptionScreen({
-        store,
-        onSaveAndBack: () => {
-          store.setStep('main');
           render();
         }
       });

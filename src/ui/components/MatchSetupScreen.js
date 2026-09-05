@@ -1,23 +1,16 @@
 /**
  * メイン画面コンポーネント (1画面完結型)
  * - 上部：時系列対戦履歴（第1ゲームが一番上、下に追加される）
- * - 中央〜下部：作成・生成された対戦組み合わせのコート表示、手動入れ替え（出場者・休憩者どちらもタップで交代可能）、再抽選
+ * - 中央上部：休憩者の手動選択・固定設定（組み合わせの上にインライン表示）
+ * - 中央〜下部：作成・生成された対戦組み合わせ（プレイヤーを横一列表示）、交代操作、再抽選
  * - 最下部：「この組み合わせで確定」ボタン & 「直前の確定を取り消す」ボタン
  */
 import { selectBestCombination, makeCardKey } from '../../models/algorithm.js';
 
-export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoRestOption, onGoHistory, onGoHome }) {
+export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoHistory, onGoHome }) {
   const playerCount = store.state.playerCount;
   const history = store.state.gameHistory || [];
   const maxRestCount = playerCount - 4;
-  const manualRestPlayers = store.state.manualRestPlayers || [];
-
-  let currentGame = store.state.currentGame;
-  if (!currentGame) {
-    currentGame = store.generateNextCurrentGame();
-  } else {
-    currentGame = { ...currentGame };
-  }
 
   let selectedPlayersForSwap = []; // 手動入れ替え用に選択されたスロット
 
@@ -25,8 +18,17 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
   container.className = 'flex-1 flex flex-col justify-between p-6 animate-slide-up overflow-y-auto no-scrollbar space-y-6';
 
   const updateUI = () => {
+    const manualRestPlayers = store.state.manualRestPlayers || [];
     const manualCount = manualRestPlayers.length;
     const autoCount = Math.max(0, maxRestCount - manualCount);
+
+    let currentGame = store.state.currentGame;
+    if (!currentGame) {
+      currentGame = store.generateNextCurrentGame();
+    } else {
+      currentGame = { ...currentGame };
+    }
+
     const { gameNumber, team1, team2, restPlayers, manualRestPlayers: gameManualRest, autoRestPlayers: gameAutoRest } = currentGame;
 
     const manualStr = (gameManualRest && gameManualRest.length > 0) ? gameManualRest.join('、') : 'なし';
@@ -90,7 +92,48 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
         `}
       </div>
 
-      <!-- 2. Middle Section: Current Generated Match Card (Inline Court Representation) -->
+      <!-- 2. Middle Top Section: Inline Rest Player Selection / Manual Options -->
+      ${maxRestCount > 0 ? `
+        <div class="glass-panel rounded-3xl p-5 border border-slate-800/80 shadow-lg space-y-3 shrink-0">
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+            <h3 class="font-extrabold text-xs text-amber-400 uppercase tracking-wider flex items-center space-x-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+              </svg>
+              <span>休憩者を選択（固定保持）</span>
+            </h3>
+            <span class="text-[11px] font-bold text-amber-400">
+              手動: ${manualCount}人 / 最大${maxRestCount}人
+            </span>
+          </div>
+
+          <!-- Rest Player Option Buttons (Inline 1~N) -->
+          <div class="grid grid-cols-6 gap-2 pt-1">
+            ${Array.from({ length: playerCount }, (_, i) => i + 1).map(p => {
+              const isSelected = manualRestPlayers.includes(p);
+              const isDisabled = !isSelected && manualCount >= maxRestCount;
+              return `
+                <button
+                  data-manual-rest="${p}"
+                  ${isDisabled ? 'disabled' : ''}
+                  class="manual-rest-toggle-btn py-2.5 rounded-xl font-black text-base transition-all duration-150 flex flex-col items-center justify-center ${
+                    isSelected
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 scale-105 ring-2 ring-amber-300'
+                      : isDisabled
+                      ? 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
+                      : 'bg-slate-800/90 text-slate-200 hover:bg-slate-700 border border-slate-700/60 active:scale-95'
+                  }"
+                >
+                  <span>${p}</span>
+                  ${isSelected ? `<span class="text-[9px] font-extrabold text-amber-950">固定</span>` : ''}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- 3. Middle Section: Current Generated Match (Players aligned HORIZONTALLY in one row) -->
       <div class="space-y-3 shrink-0">
         <div class="flex items-center justify-between px-1">
           <div class="flex items-center space-x-2">
@@ -99,49 +142,37 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
               第 ${gameNumber} ゲームの組み合わせ
             </h3>
           </div>
-          <span class="text-[11px] text-emerald-300 bg-emerald-950/80 border border-emerald-800 px-2.5 py-0.5 rounded-full">
-            💡 選手2人タップで交代・入れ替え
-          </span>
         </div>
 
-        <!-- Court Container -->
-        <div class="court-card rounded-3xl p-6 relative overflow-hidden border shadow-2xl">
-          <!-- Court Net Line -->
-          <div class="absolute inset-x-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed court-line flex items-center justify-center">
-            <span class="bg-slate-900/90 text-amber-400 text-xs font-black tracking-widest px-3 py-1 rounded-full border border-amber-500/30">
-              VS
-            </span>
-          </div>
-
-          <!-- Team 1 (Top Court) -->
-          <div class="mb-9 text-center space-y-2">
-            <span class="text-[11px] font-extrabold uppercase tracking-widest text-emerald-400/90">TEAM A</span>
-            <div class="flex items-center justify-center space-x-4">
+        <!-- Horizontal Court Container (Clean Horizontal Layout without MATCH LAYOUT / TEAM A / TEAM B labels) -->
+        <div class="court-card rounded-3xl p-5 border shadow-2xl">
+          <!-- Horizontal Players Row: [ Player A1 ] [ Player A2 ]  VS  [ Player B1 ] [ Player B2 ] -->
+          <div class="flex items-center justify-around py-2 px-1">
+            <!-- Team A Players -->
+            <div class="flex space-x-2">
               ${renderPlayerCard(team1[0], 't1-0')}
-              <span class="text-slate-500 font-bold">•</span>
               ${renderPlayerCard(team1[1], 't1-1')}
             </div>
-          </div>
 
-          <!-- Team 2 (Bottom Court) -->
-          <div class="mt-9 text-center space-y-2">
-            <div class="flex items-center justify-center space-x-4">
+            <!-- VS Badge -->
+            <div class="px-2 flex flex-col items-center justify-center">
+              <span class="bg-slate-900/90 text-amber-400 text-xs font-black tracking-widest px-2.5 py-1 rounded-full border border-amber-500/40 shadow-inner">
+                VS
+              </span>
+            </div>
+
+            <!-- Team B Players -->
+            <div class="flex space-x-2">
               ${renderPlayerCard(team2[0], 't2-0')}
-              <span class="text-slate-500 font-bold">•</span>
               ${renderPlayerCard(team2[1], 't2-1')}
             </div>
-            <span class="text-[11px] font-extrabold uppercase tracking-widest text-teal-400/90">TEAM B</span>
           </div>
         </div>
 
-        <!-- Rest & Options Info Panel (with clickable Rest Player Buttons) -->
-        <div class="glass-panel rounded-2xl p-4 text-xs space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="font-bold text-slate-300">休憩プレイヤー (タップで出場者と交代):</span>
-          </div>
-
+        <!-- Rest Players Info Panel (Without Title Header Label) -->
+        <div class="glass-panel rounded-2xl p-3.5 text-xs space-y-2">
           ${restPlayers && restPlayers.length > 0 ? `
-            <div class="flex items-center space-x-3 py-1">
+            <div class="flex items-center space-x-2">
               ${restPlayers.map((playerNum, idx) => renderRestPlayerCard(playerNum, `rest-${idx}`)).join('')}
             </div>
           ` : `
@@ -149,38 +180,26 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           `}
 
           ${maxRestCount > 0 ? `
-            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2.5 border-t border-slate-800/60">
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800/60">
               <span>手動固定：<strong class="text-amber-300">${manualStr}</strong></span>
               <span>自動補充：<strong class="text-teal-300">${autoStr}</strong></span>
-              <button id="btn-open-rest-option" class="text-amber-400 hover:underline font-bold ml-2">
-                設定変更
-              </button>
             </div>
           ` : ''}
         </div>
 
-        <!-- Reroll & Clear buttons -->
-        <div class="grid grid-cols-2 gap-2">
-          <button
-            id="btn-reroll"
-            class="py-3 rounded-xl font-bold text-xs bg-slate-800/90 text-emerald-400 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            <span>組み合わせを再抽選</span>
-          </button>
-
-          <button
-            id="btn-clear-swap"
-            class="py-3 rounded-xl font-bold text-xs bg-slate-800/90 text-slate-300 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all"
-          >
-            選択状態を解除
-          </button>
-        </div>
+        <!-- Reroll Button -->
+        <button
+          id="btn-reroll"
+          class="w-full py-3.5 rounded-xl font-bold text-xs bg-slate-800/90 text-emerald-400 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span>組み合わせを再抽選</span>
+        </button>
       </div>
 
-      <!-- 3. Bottom Action Buttons: Confirm Match, Undo & Options -->
+      <!-- 4. Bottom Action Buttons: Confirm Match & Undo -->
       <div class="space-y-2.5 pt-2 border-t border-slate-800/60 shrink-0 pb-2">
         <button
           id="btn-confirm-match"
@@ -203,23 +222,10 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             <span>直前の確定を取り消す (第${history.length}G)</span>
           </button>
         ` : ''}
-
-        ${maxRestCount > 0 ? `
-          <button
-            id="btn-option-secondary"
-            class="w-full py-2.5 rounded-xl font-bold text-xs bg-slate-800/90 text-amber-300 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            <span>休憩者を選択する（オプション）</span>
-          </button>
-        ` : ''}
       </div>
     `;
 
-    // 出場選手カードレンダラー
+    // 出場選手カード（横一列用）
     function renderPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       return `
@@ -236,25 +242,34 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       `;
     }
 
-    // 休憩選手カードレンダラー
+    // 休憩選手カード
     function renderRestPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       return `
         <button
           data-slot="${slotId}"
-          class="player-slot px-4 py-2 rounded-xl font-bold text-sm flex items-center space-x-1.5 transition-all duration-200 shadow-sm ${
+          class="player-slot px-3.5 py-2 rounded-xl font-bold text-sm flex items-center space-x-1 transition-all duration-200 shadow-sm ${
             isSelected
               ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse'
               : 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95'
           }"
         >
-          <span class="text-xs text-slate-400 font-normal">休</span>
+          <span class="text-[10px] text-slate-400 font-normal">休</span>
           <span class="font-black text-base">${playerNum}</span>
         </button>
       `;
     }
 
-    // タップイベント登録（出場者・休憩者統合）
+    // インライン手動休憩トグルボタンのイベントリスナー
+    container.querySelectorAll('.manual-rest-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const playerNum = parseInt(e.currentTarget.dataset.manualRest, 10);
+        store.toggleManualRestPlayer(playerNum);
+        updateUI();
+      });
+    });
+
+    // 選手タップ（入れ替え）のイベントリスナー
     container.querySelectorAll('.player-slot').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const slot = e.currentTarget.dataset.slot;
@@ -272,7 +287,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       });
     });
 
-    // プレイヤー入れ替え（出場者・休憩者自由交代対応）
     function swapPlayers(slotA, slotB) {
       const getVal = (slot) => {
         if (slot === 't1-0') return currentGame.team1[0];
@@ -325,14 +339,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       });
     }
 
-    const clearBtn = container.querySelector('#btn-clear-swap');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
-        selectedPlayersForSwap = [];
-        updateUI();
-      });
-    }
-
     const confirmMatchBtn = container.querySelector('#btn-confirm-match');
     if (confirmMatchBtn) {
       confirmMatchBtn.addEventListener('click', () => {
@@ -347,12 +353,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
         onUndoMatch();
       });
     }
-
-    const openOptionBtn = container.querySelector('#btn-open-rest-option');
-    if (openOptionBtn) openOptionBtn.addEventListener('click', onGoRestOption);
-
-    const optionSecBtn = container.querySelector('#btn-option-secondary');
-    if (optionSecBtn) optionSecBtn.addEventListener('click', onGoRestOption);
 
     const viewStatsBtn = container.querySelector('#btn-view-stats');
     if (viewStatsBtn) viewStatsBtn.addEventListener('click', onGoHistory);
