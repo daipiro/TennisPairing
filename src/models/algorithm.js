@@ -43,6 +43,26 @@ export function makeCardKey(team1, team2) {
 }
 
 /**
+ * 各プレイヤーの現在の連続出場数を計算する
+ * @param {number} playerNum - プレイヤー番号
+ * @param {Array} history - 確定済みゲーム履歴
+ * @returns {number} 連続出場数
+ */
+export function calculateConsecutivePlays(playerNum, history) {
+  let consecutive = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const game = history[i];
+    const activePlayers = [...game.team1, ...game.team2];
+    if (activePlayers.includes(playerNum)) {
+      consecutive++;
+    } else {
+      break;
+    }
+  }
+  return consecutive;
+}
+
+/**
  * 過去履歴からの集計データを求める
  */
 export function aggregateHistory(history) {
@@ -124,13 +144,25 @@ export function calculatePenaltyScore(combination, history, lastDisplayedKey = n
 
   const isSameAsLastDisplayed = lastDisplayedKey && (key === lastDisplayedKey);
 
+  // 連続プレイペナルティ: 3連続以上のプレイヤーが4人の出場者に含まれている場合にペナルティ加算
+  const allPlayers = [...team1, ...team2];
+  let consecutivePlayPenalty = 0;
+  for (const p of allPlayers) {
+    const consecutive = calculateConsecutivePlays(p, history);
+    if (consecutive >= 3) {
+      // 3連続: ペナルティ中、4連続以上: さらに大きいペナルティ
+      consecutivePlayPenalty += (consecutive - 2) * 150;
+    }
+  }
+
   const score =
     (pairRepetition * 100) +
     (oppRepetition * 10) +
     (sameCardCount * 30) +
     (lastGameSamePairCount * 300) +
     (lastGameSameCard ? 500 : 0) +
-    (isSameAsLastDisplayed ? 200 : 0);
+    (isSameAsLastDisplayed ? 200 : 0) +
+    consecutivePlayPenalty;
 
   return {
     score,
@@ -140,18 +172,20 @@ export function calculatePenaltyScore(combination, history, lastDisplayedKey = n
       sameCardCount,
       lastGameSamePairCount,
       lastGameSameCard,
-      isSameAsLastDisplayed
+      isSameAsLastDisplayed,
+      consecutivePlayPenalty
     }
   };
 }
 
 /**
- * 休憩者を決定する（手動指定 + 直前休憩者の優先プレイロジック適用）
+ * 休憩者を決定する（手動指定 + 連続プレイ制限 + 直前休憩者の優先プレイロジック適用）
  * @param {number} playerCount 
  * @param {number[]} manualRestPlayers - 手動で固定指定された休憩者
  * @param {number[]} lastGameRestPlayers - 直前の確定ゲームで休憩していたプレイヤー
+ * @param {Array} history - 確定済みゲーム履歴（連続プレイ数計算用）
  */
-export function determineRestPlayers(playerCount, manualRestPlayers = [], lastGameRestPlayers = []) {
+export function determineRestPlayers(playerCount, manualRestPlayers = [], lastGameRestPlayers = [], history = []) {
   const targetRestCount = playerCount - 4;
   if (targetRestCount <= 0) {
     return {
@@ -181,12 +215,6 @@ export function determineRestPlayers(playerCount, manualRestPlayers = [], lastGa
     }
   }
 
-  // 直前ゲームで休憩していたプレイヤーは「優先的にプレイ」させるため、
-  // 自動選出の休憩者候補からできる限り除外し、直前出場者を優先して休憩者候補にする。
-  const lastRestSet = new Set(lastGameRestPlayers);
-  const playedLastGame = remainingCandidates.filter(p => !lastRestSet.has(p));
-  const restedLastGame = remainingCandidates.filter(p => lastRestSet.has(p));
-
   // シャッフル関数 (Fisher-Yates)
   const shuffle = (arr) => {
     const res = [...arr];
@@ -197,16 +225,32 @@ export function determineRestPlayers(playerCount, manualRestPlayers = [], lastGa
     return res;
   };
 
+  // 各候補の連続出場数を計算
+  const consecutiveCounts = {};
+  for (const p of remainingCandidates) {
+    consecutiveCounts[p] = calculateConsecutivePlays(p, history);
+  }
+
+  // 優先度グループ分け:
+  // 1. 連続3回以上出場中のプレイヤー（最優先で休憩させる）
+  // 2. 直前ゲームに出場していたプレイヤー（次に休憩候補にしやすい）
+  // 3. 直前ゲームで休憩していたプレイヤー（できる限り出場させたい）
+  const lastRestSet = new Set(lastGameRestPlayers);
+
+  const overLimitPlayers = remainingCandidates.filter(p => consecutiveCounts[p] >= 3);
+  const playedLastGame = remainingCandidates.filter(p => consecutiveCounts[p] < 3 && !lastRestSet.has(p));
+  const restedLastGame = remainingCandidates.filter(p => consecutiveCounts[p] < 3 && lastRestSet.has(p));
+
+  const shuffledOverLimit = shuffle(overLimitPlayers);
   const shuffledPlayed = shuffle(playedLastGame);
   const shuffledRested = shuffle(restedLastGame);
 
-  // まず直前ゲームに出場していた人から休憩者を選ぶ
-  let selectedAutoRest = shuffledPlayed.slice(0, autoNeeded);
-
-  // もし不足分があれば、直前ゲームで休憩していた人からも補填する
-  if (selectedAutoRest.length < autoNeeded) {
-    const neededMore = autoNeeded - selectedAutoRest.length;
-    selectedAutoRest = [...selectedAutoRest, ...shuffledRested.slice(0, neededMore)];
+  // 優先度順に休憩者を選出: 連続超過 → 直前出場 → 直前休憩
+  let selectedAutoRest = [];
+  for (const group of [shuffledOverLimit, shuffledPlayed, shuffledRested]) {
+    if (selectedAutoRest.length >= autoNeeded) break;
+    const needed = autoNeeded - selectedAutoRest.length;
+    selectedAutoRest = [...selectedAutoRest, ...group.slice(0, needed)];
   }
 
   const autoRestPlayers = selectedAutoRest.sort((a, b) => a - b);

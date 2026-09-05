@@ -77,11 +77,12 @@ export class AppStore {
       lastGameRestPlayers = this.state.gameHistory[this.state.gameHistory.length - 1].restPlayers || [];
     }
 
-    // 休憩者の決定（直前休憩者は優先的に出場させる）
+    // 休憩者の決定（連続3連続プレイヤー優先休憩 + 直前休憩者は優先的に出場させる）
     const { restPlayers, manualRestPlayers, autoRestPlayers } = determineRestPlayers(
       playerCount,
       this.state.manualRestPlayers || [],
-      lastGameRestPlayers
+      lastGameRestPlayers,
+      this.state.gameHistory
     );
 
     // 出場者4人の選出
