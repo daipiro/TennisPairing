@@ -41,8 +41,8 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
 
           <div class="grid grid-cols-2 gap-2.5">
             ${Array.from({ length: playerCount }, (_, i) => i + 1).map(p => {
-      const stat = stats[p] || { playCount: 0, restCount: 0 };
-      return `
+              const stat = stats[p] || { playCount: 0, restCount: 0 };
+              return `
                 <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-2xl flex items-center justify-between">
                   <div class="flex items-center space-x-2">
                     <span class="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm flex items-center justify-center border border-emerald-500/30">
@@ -56,7 +56,7 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
                   </div>
                 </div>
               `;
-    }).join('')}
+            }).join('')}
           </div>
         </div>
 
@@ -82,18 +82,27 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
 
                   <!-- Teams Match Display -->
                   <div class="flex items-center justify-around py-2 text-base font-black text-white">
-                    <div class="text-emerald-300">
-                      ${game.team1[0]} ・ ${game.team1[1]}
+                    <div class="flex items-center space-x-1.5 text-emerald-300">
+                      ${renderHistoryPlayerBadge(game.team1[0])}
+                      <span class="text-slate-600 text-xs">•</span>
+                      ${renderHistoryPlayerBadge(game.team1[1])}
                     </div>
                     <div class="text-xs font-black text-slate-500 px-2">VS</div>
-                    <div class="text-teal-300">
-                      ${game.team2[0]} ・ ${game.team2[1]}
+                    <div class="flex items-center space-x-1.5 text-teal-300">
+                      ${renderHistoryPlayerBadge(game.team2[0])}
+                      <span class="text-slate-600 text-xs">•</span>
+                      ${renderHistoryPlayerBadge(game.team2[1])}
                     </div>
                   </div>
 
                   <!-- Rest info -->
                   <div class="text-xs text-slate-400 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-                    <span>休憩：<strong class="text-amber-400 font-bold">${game.restPlayers && game.restPlayers.length > 0 ? game.restPlayers.join('、') : 'なし'}</strong></span>
+                    <div class="flex items-center space-x-1.5">
+                      <span class="font-bold text-slate-300">休憩：</span>
+                      ${game.restPlayers && game.restPlayers.length > 0
+                        ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true)).join(' ')
+                        : '<strong class="text-amber-400 font-bold">なし</strong>'}
+                    </div>
                     ${game.manuallySelectedRestPlayers && game.manuallySelectedRestPlayers.length > 0 ? `
                       <span class="text-[10px] text-slate-500">手動指定: ${game.manuallySelectedRestPlayers.join('、')}</span>
                     ` : ''}
@@ -127,6 +136,13 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
         </button>
       </div>
     `;
+
+    function renderHistoryPlayerBadge(playerNum, isRest = false) {
+      if (isRest) {
+        return `<span class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md bg-amber-950/90 border border-amber-500/60 text-amber-300 font-extrabold text-xs shadow-sm">${playerNum}</span>`;
+      }
+      return `<span class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md bg-slate-800 border border-slate-600/80 text-emerald-300 font-extrabold text-xs shadow-sm">${playerNum}</span>`;
+    }
 
     // Confirm dialog helper
     const backBtn = container.querySelector('#btn-back');

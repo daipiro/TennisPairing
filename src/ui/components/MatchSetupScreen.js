@@ -3,9 +3,9 @@
  * - 上部：時系列対戦履歴（第1ゲームが一番上、下に追加される）
  * - 中央上部：休憩者の手動選択・固定設定（組み合わせの上にインライン表示）
  * - 中央〜下部：作成・生成された対戦組み合わせ（プレイヤーを横一列表示）、交代操作、再抽選（手動固定以外を再選出）
- * - 最下部：「この組み合わせで確定」ボタン & 「直前の確定を取り消す」ボタン
+ * - 最下部：アイコンのみの横並びアクションボタン (取り消し → 再抽選 → 確定)
  */
-import { makeCardKey } from '../../models/algorithm.js';
+import { makeCardKey, calculateConsecutivePlaysWithCurrent, calculateConsecutiveRestsWithCurrent } from '../../models/algorithm.js';
 
 export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoHistory, onGoHome }) {
   const playerCount = store.state.playerCount;
@@ -20,7 +20,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
   const updateUI = () => {
     const manualRestPlayers = store.state.manualRestPlayers || [];
     const manualCount = manualRestPlayers.length;
-    const autoCount = Math.max(0, maxRestCount - manualCount);
 
     let currentGame = store.state.currentGame;
     if (!currentGame) {
@@ -79,12 +78,21 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
                   <span class="font-black text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full text-[10px]">
                     第${game.gameNumber}G
                   </span>
-                  <span class="font-extrabold text-white text-sm">
-                    ${game.team1[0]}・${game.team1[1]} <span class="text-slate-500 font-normal text-xs">vs</span> ${game.team2[0]}・${game.team2[1]}
-                  </span>
+                  <div class="flex items-center space-x-1.5 font-extrabold text-white text-sm">
+                    ${renderHistoryPlayerBadge(game.team1[0])}
+                    <span class="text-slate-600 text-xs">•</span>
+                    ${renderHistoryPlayerBadge(game.team1[1])}
+                    <span class="text-slate-500 font-normal text-xs px-1">vs</span>
+                    ${renderHistoryPlayerBadge(game.team2[0])}
+                    <span class="text-slate-600 text-xs">•</span>
+                    ${renderHistoryPlayerBadge(game.team2[1])}
+                  </div>
                 </div>
-                <div class="text-[11px] text-amber-400 font-medium">
-                  休: ${game.restPlayers && game.restPlayers.length > 0 ? game.restPlayers.join(',') : 'なし'}
+                <div class="flex items-center space-x-1 text-[11px] text-amber-400 font-medium">
+                  <span class="text-slate-400">休:</span>
+                  ${game.restPlayers && game.restPlayers.length > 0
+                    ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true)).join(' ')
+                    : '<span class="text-slate-500">なし</span>'}
                 </div>
               </div>
             `).join('')}
@@ -149,7 +157,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           <!-- Horizontal Players Row: [ Team A (2) ]  VS  [ Team B (2) ] -->
           <div class="flex items-center justify-around py-2 px-1">
             <!-- Team A Players -->
-            <div class="flex space-x-2">
+            <div class="flex space-x-3 items-start">
               ${renderPlayerCard(team1[0], 't1-0')}
               ${renderPlayerCard(team1[1], 't1-1')}
             </div>
@@ -162,7 +170,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             </div>
 
             <!-- Team B Players -->
-            <div class="flex space-x-2">
+            <div class="flex space-x-3 items-start">
               ${renderPlayerCard(team2[0], 't2-0')}
               ${renderPlayerCard(team2[1], 't2-1')}
             </div>
@@ -172,7 +180,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
         <!-- Rest Players Info Panel -->
         <div class="glass-panel rounded-2xl p-3.5 text-xs space-y-2">
           ${restPlayers && restPlayers.length > 0 ? `
-            <div class="flex items-center space-x-2">
+            <div class="flex items-start space-x-3">
               ${restPlayers.map((playerNum, idx) => renderRestPlayerCard(playerNum, `rest-${idx}`)).join('')}
             </div>
           ` : `
@@ -187,76 +195,111 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           ` : ''}
         </div>
 
-        <!-- Reroll Button (Re-evaluates rest players as well except manual fixed ones) -->
-        <button
-          id="btn-reroll"
-          class="w-full py-3.5 rounded-xl font-bold text-xs bg-slate-800/90 text-emerald-400 border border-slate-700/80 hover:bg-slate-700/90 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-          </svg>
-          <span>組み合わせを再抽選 (休憩者含む)</span>
-        </button>
       </div>
 
-      <!-- 4. Bottom Action Buttons: Confirm Match & Undo -->
-      <div class="space-y-2.5 pt-2 border-t border-slate-800/60 shrink-0 pb-2">
-        <button
-          id="btn-confirm-match"
-          class="w-full py-4 rounded-2xl font-extrabold text-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/25 hover:brightness-110 active:scale-[0.99] transition-all duration-150 flex items-center justify-center space-x-2"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-          </svg>
-          <span>この組み合わせで確定 (第${gameNumber}G)</span>
-        </button>
-
-        ${history.length > 0 ? `
+      <!-- 4. Bottom Action Buttons: Undo -> Reroll -> Confirm (Icon Only Horizontal Row) -->
+      <div class="pt-2 border-t border-slate-800/60 shrink-0 pb-2">
+        <div class="grid grid-cols-3 gap-3">
+          <!-- 1. 取り消し (Undo) -->
           <button
             id="btn-undo-main"
-            class="w-full py-3 rounded-xl font-bold text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 active:scale-95 transition-all flex items-center justify-center space-x-1.5"
+            ${history.length === 0 ? 'disabled' : ''}
+            title="直前の確定を取り消す"
+            aria-label="直前の確定を取り消す"
+            class="py-3.5 rounded-2xl font-extrabold text-base flex items-center justify-center transition-all duration-150 ${
+              history.length > 0
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 active:scale-95 shadow-md shadow-amber-500/10'
+                : 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
+            }"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
             </svg>
-            <span>直前の確定を取り消す (第${history.length}G)</span>
           </button>
-        ` : ''}
+
+          <!-- 2. 再抽選 (Reroll) -->
+          <button
+            id="btn-reroll-bottom"
+            title="組み合わせを再抽選"
+            aria-label="組み合わせを再抽選"
+            class="py-3.5 rounded-2xl font-extrabold text-base bg-slate-800/90 text-emerald-400 border border-emerald-500/30 hover:bg-slate-700/90 active:scale-95 transition-all flex items-center justify-center shadow-md shadow-emerald-500/10"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </button>
+
+          <!-- 3. 確定 (Confirm) -->
+          <button
+            id="btn-confirm-match"
+            title="この組み合わせで確定"
+            aria-label="この組み合わせで確定"
+            class="py-3.5 rounded-2xl font-extrabold text-base bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/25 hover:brightness-110 active:scale-95 transition-all duration-150 flex items-center justify-center"
+          >
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+            </svg>
+          </button>
+        </div>
       </div>
     `;
+
+    // 履歴内プレイヤーナンバーバッジレンダリング
+    function renderHistoryPlayerBadge(playerNum, isRest = false) {
+      if (isRest) {
+        return `<span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded-md bg-amber-950/90 border border-amber-500/60 text-amber-300 font-extrabold text-[11px]">${playerNum}</span>`;
+      }
+      return `<span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded-md bg-slate-800 border border-slate-600/80 text-emerald-300 font-extrabold text-[11px]">${playerNum}</span>`;
+    }
 
     // 出場選手カード（横一列用）
     function renderPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
+      const consecutivePlays = calculateConsecutivePlaysWithCurrent(playerNum, history, currentGame);
+      const streakBadge = consecutivePlays >= 2
+        ? `<span class="text-[10px] font-extrabold text-emerald-300 bg-emerald-950/90 border border-emerald-500/50 px-2 py-0.5 rounded-full shadow-sm"><sup>${consecutivePlays}</sup>連</span>`
+        : '';
+
       return `
-        <button
-          data-slot="${slotId}"
-          class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${
-            isSelected
-              ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-110 animate-bounce'
-              : 'bg-slate-800/90 text-white hover:bg-slate-700 border border-slate-600/50 active:scale-95'
-          }"
-        >
-          ${playerNum}
-        </button>
+        <div class="flex flex-col items-center space-y-1">
+          <button
+            data-slot="${slotId}"
+            class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${
+              isSelected
+                ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-110 animate-bounce'
+                : 'bg-slate-800/90 text-white hover:bg-slate-700 border border-slate-600/50 active:scale-95'
+            }"
+          >
+            ${playerNum}
+          </button>
+          ${streakBadge}
+        </div>
       `;
     }
 
     // 休憩選手カード
     function renderRestPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
+      const consecutiveRests = calculateConsecutiveRestsWithCurrent(playerNum, history, currentGame);
+      const streakBadge = consecutiveRests >= 2
+        ? `<span class="text-[10px] font-extrabold text-amber-300 bg-amber-950/90 border border-amber-500/50 px-2 py-0.5 rounded-full shadow-sm"><sup>${consecutiveRests}</sup>連</span>`
+        : '';
+
       return `
-        <button
-          data-slot="${slotId}"
-          class="player-slot px-3.5 py-2 rounded-xl font-bold text-sm flex items-center space-x-1 transition-all duration-200 shadow-sm ${
-            isSelected
-              ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse'
-              : 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95'
-          }"
-        >
-          <span class="text-[10px] text-slate-400 font-normal">休</span>
-          <span class="font-black text-base">${playerNum}</span>
-        </button>
+        <div class="flex flex-col items-center space-y-1">
+          <button
+            data-slot="${slotId}"
+            class="player-slot px-3.5 py-2 rounded-xl font-bold text-sm flex items-center space-x-1 transition-all duration-200 shadow-sm ${
+              isSelected
+                ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse'
+                : 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95'
+            }"
+          >
+            <span class="text-[10px] text-slate-400 font-normal">休</span>
+            <span class="font-black text-base">${playerNum}</span>
+          </button>
+          ${streakBadge}
+        </div>
       `;
     }
 
@@ -321,15 +364,15 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       store.setCurrentGame(currentGame);
     }
 
-    // 再抽選ボタン（手動固定以外は休憩者の選出も含めて再抽選する）
-    const rerollBtn = container.querySelector('#btn-reroll');
-    if (rerollBtn) {
-      rerollBtn.addEventListener('click', () => {
-        store.rerollCurrentGame();
-        selectedPlayersForSwap = [];
-        updateUI();
-      });
-    }
+    // 再抽選ボタン
+    const triggerReroll = () => {
+      store.rerollCurrentGame();
+      selectedPlayersForSwap = [];
+      updateUI();
+    };
+
+    const rerollBottomBtn = container.querySelector('#btn-reroll-bottom');
+    if (rerollBottomBtn) rerollBottomBtn.addEventListener('click', triggerReroll);
 
     const confirmMatchBtn = container.querySelector('#btn-confirm-match');
     if (confirmMatchBtn) {
@@ -340,7 +383,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
     }
 
     const undoMainBtn = container.querySelector('#btn-undo-main');
-    if (undoMainBtn) {
+    if (undoMainBtn && history.length > 0) {
       undoMainBtn.addEventListener('click', () => {
         onUndoMatch();
       });

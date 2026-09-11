@@ -63,6 +63,46 @@ export function calculateConsecutivePlays(playerNum, history) {
 }
 
 /**
+ * 各プレイヤーの現在の連続休憩数を計算する
+ * @param {number} playerNum - プレイヤー番号
+ * @param {Array} history - 確定済みゲーム履歴
+ * @returns {number} 連続休憩数
+ */
+export function calculateConsecutiveRests(playerNum, history) {
+  let consecutive = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const game = history[i];
+    const restPlayers = game.restPlayers || [];
+    if (restPlayers.includes(playerNum)) {
+      consecutive++;
+    } else {
+      break;
+    }
+  }
+  return consecutive;
+}
+
+/**
+ * 現在のゲームを含めた連続出場数を計算する
+ */
+export function calculateConsecutivePlaysWithCurrent(playerNum, history, currentGame) {
+  if (!currentGame) return calculateConsecutivePlays(playerNum, history);
+  const activePlayers = [...(currentGame.team1 || []), ...(currentGame.team2 || [])];
+  if (!activePlayers.includes(playerNum)) return 0;
+  return 1 + calculateConsecutivePlays(playerNum, history);
+}
+
+/**
+ * 現在のゲームを含めた連続休憩数を計算する
+ */
+export function calculateConsecutiveRestsWithCurrent(playerNum, history, currentGame) {
+  if (!currentGame) return calculateConsecutiveRests(playerNum, history);
+  const restPlayers = currentGame.restPlayers || [];
+  if (!restPlayers.includes(playerNum)) return 0;
+  return 1 + calculateConsecutiveRests(playerNum, history);
+}
+
+/**
  * 過去履歴からの集計データを求める
  */
 export function aggregateHistory(history) {
