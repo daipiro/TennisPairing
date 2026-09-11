@@ -72,27 +72,27 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           </div>
         ` : `
           <div class="space-y-2.5">
-            ${history.map(game => `
+            ${history.map((game, gameIdx) => `
               <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 flex items-center justify-between text-xs">
                 <div class="flex items-center space-x-2">
                   <span class="font-black text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full text-[10px]">
                     第${game.gameNumber}G
                   </span>
                   <div class="flex items-center space-x-1.5 font-extrabold text-white text-sm">
-                    ${renderHistoryPlayerBadge(game.team1[0])}
+                    ${renderHistoryPlayerBadge(game.team1[0], false, getHistoryConsecutivePlays(game.team1[0], gameIdx))}
                     <span class="text-slate-600 text-xs">•</span>
-                    ${renderHistoryPlayerBadge(game.team1[1])}
+                    ${renderHistoryPlayerBadge(game.team1[1], false, getHistoryConsecutivePlays(game.team1[1], gameIdx))}
                     <span class="text-slate-500 font-normal text-xs px-1">vs</span>
-                    ${renderHistoryPlayerBadge(game.team2[0])}
+                    ${renderHistoryPlayerBadge(game.team2[0], false, getHistoryConsecutivePlays(game.team2[0], gameIdx))}
                     <span class="text-slate-600 text-xs">•</span>
-                    ${renderHistoryPlayerBadge(game.team2[1])}
+                    ${renderHistoryPlayerBadge(game.team2[1], false, getHistoryConsecutivePlays(game.team2[1], gameIdx))}
                   </div>
                 </div>
                 <div class="flex items-center space-x-1 text-[11px] text-amber-400 font-medium">
                   <span class="text-slate-400">休:</span>
                   ${game.restPlayers && game.restPlayers.length > 0
-                    ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true)).join(' ')
-                    : '<span class="text-slate-500">なし</span>'}
+        ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true, getHistoryConsecutiveRests(r, gameIdx))).join(' ')
+        : '<span class="text-slate-500">なし</span>'}
                 </div>
               </div>
             `).join('')}
@@ -118,25 +118,24 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           <!-- Rest Player Option Buttons (Inline 1~N) -->
           <div class="grid grid-cols-6 gap-2 pt-1">
             ${Array.from({ length: playerCount }, (_, i) => i + 1).map(p => {
-              const isSelected = manualRestPlayers.includes(p);
-              const isDisabled = !isSelected && manualCount >= maxRestCount;
-              return `
+          const isSelected = manualRestPlayers.includes(p);
+          const isDisabled = !isSelected && manualCount >= maxRestCount;
+          return `
                 <button
                   data-manual-rest="${p}"
                   ${isDisabled ? 'disabled' : ''}
-                  class="manual-rest-toggle-btn py-2.5 rounded-xl font-black text-base transition-all duration-150 flex flex-col items-center justify-center ${
-                    isSelected
-                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 scale-105 ring-2 ring-amber-300'
-                      : isDisabled
-                      ? 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
-                      : 'bg-slate-800/90 text-slate-200 hover:bg-slate-700 border border-slate-700/60 active:scale-95'
-                  }"
+                  class="manual-rest-toggle-btn py-2.5 rounded-xl font-black text-base transition-all duration-150 flex flex-col items-center justify-center ${isSelected
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 scale-105 ring-2 ring-amber-300'
+              : isDisabled
+                ? 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
+                : 'bg-slate-800/90 text-slate-200 hover:bg-slate-700 border border-slate-700/60 active:scale-95'
+            }"
                 >
                   <span>${p}</span>
                   ${isSelected ? `<span class="text-[9px] font-extrabold text-amber-950">固定</span>` : ''}
                 </button>
               `;
-            }).join('')}
+        }).join('')}
           </div>
         </div>
       ` : ''}
@@ -206,11 +205,10 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             ${history.length === 0 ? 'disabled' : ''}
             title="直前の確定を取り消す"
             aria-label="直前の確定を取り消す"
-            class="py-3.5 rounded-2xl font-extrabold text-base flex items-center justify-center transition-all duration-150 ${
-              history.length > 0
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 active:scale-95 shadow-md shadow-amber-500/10'
-                : 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
-            }"
+            class="py-3.5 rounded-2xl font-extrabold text-base flex items-center justify-center transition-all duration-150 ${history.length > 0
+        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 active:scale-95 shadow-md shadow-amber-500/10'
+        : 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
+      }"
           >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
@@ -245,11 +243,53 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
     `;
 
     // 履歴内プレイヤーナンバーバッジレンダリング
-    function renderHistoryPlayerBadge(playerNum, isRest = false) {
+    function renderHistoryPlayerBadge(playerNum, isRest = false, consecutiveCount = 1) {
       if (isRest) {
-        return `<span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded-md bg-amber-950/90 border border-amber-500/60 text-amber-300 font-extrabold text-[11px]">${playerNum}</span>`;
+        let restStyle = 'bg-amber-950/90 border border-amber-500/60 text-amber-300';
+        if (consecutiveCount >= 2) {
+          restStyle = 'bg-amber-950 border-2 border-amber-400 text-amber-300 ring-1 ring-amber-400/40 shadow-sm';
+        }
+        return `<span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded-md font-extrabold text-[11px] ${restStyle}">${playerNum}</span>`;
       }
-      return `<span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded-md bg-slate-800 border border-slate-600/80 text-emerald-300 font-extrabold text-[11px]">${playerNum}</span>`;
+
+      let badgeStyle = 'bg-slate-800 border border-slate-600/80 text-emerald-300';
+      if (consecutiveCount === 2) {
+        badgeStyle = 'bg-emerald-950 border-2 border-emerald-400 text-emerald-300 ring-1 ring-emerald-400/40 shadow-sm';
+      } else if (consecutiveCount === 3) {
+        badgeStyle = 'bg-blue-950 border-2 border-blue-400 text-blue-300 ring-1 ring-blue-400/40 shadow-sm';
+      } else if (consecutiveCount >= 4) {
+        badgeStyle = 'bg-rose-950 border-2 border-rose-500 text-rose-300 ring-1 ring-rose-500/40 shadow-sm';
+      }
+
+      return `<span class="inline-flex items-center justify-center min-w-[22px] h-5 px-1 rounded-md font-extrabold text-[11px] ${badgeStyle}">${playerNum}</span>`;
+    }
+
+    // 履歴内ゲームインデックス時点での連続出場数を計算
+    function getHistoryConsecutivePlays(playerNum, gameIdx) {
+      let count = 0;
+      for (let i = gameIdx; i >= 0; i--) {
+        const g = history[i];
+        if (g && (g.team1.includes(playerNum) || g.team2.includes(playerNum))) {
+          count++;
+        } else {
+          break;
+        }
+      }
+      return count;
+    }
+
+    // 履歴内ゲームインデックス時点での連続休憩数を計算
+    function getHistoryConsecutiveRests(playerNum, gameIdx) {
+      let count = 0;
+      for (let i = gameIdx; i >= 0; i--) {
+        const g = history[i];
+        if (g && g.restPlayers && g.restPlayers.includes(playerNum)) {
+          count++;
+        } else {
+          break;
+        }
+      }
+      return count;
     }
 
     // 出場選手カード（横一列用）
@@ -257,18 +297,27 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       const isSelected = selectedPlayersForSwap.includes(slotId);
       const consecutivePlays = calculateConsecutivePlaysWithCurrent(playerNum, history, currentGame);
       const streakBadge = consecutivePlays >= 2
-        ? `<span class="text-[10px] font-extrabold text-emerald-300 bg-emerald-950/90 border border-emerald-500/50 px-2 py-0.5 rounded-full shadow-sm"><sup>${consecutivePlays}</sup>連</span>`
+        ? `<span class="text-xs font-black text-emerald-300 bg-emerald-950 border border-emerald-500/60 px-2 py-0.5 rounded-full shadow-sm flex items-center justify-center leading-none"><span class="text-sm font-extrabold mr-0.5">${consecutivePlays}</span>連</span>`
         : '';
+
+      let borderStyle = 'bg-slate-800/90 text-white border border-slate-600/50 hover:bg-slate-700 active:scale-95';
+      if (consecutivePlays === 2) {
+        borderStyle = 'bg-emerald-950/80 border-2 border-emerald-400 text-emerald-200 ring-1 ring-emerald-400/40 hover:bg-emerald-900 active:scale-95';
+      } else if (consecutivePlays === 3) {
+        borderStyle = 'bg-blue-950/80 border-2 border-blue-400 text-blue-200 ring-1 ring-blue-400/40 hover:bg-blue-900 active:scale-95';
+      } else if (consecutivePlays >= 4) {
+        borderStyle = 'bg-rose-950/80 border-2 border-rose-500 text-rose-200 ring-1 ring-rose-500/40 hover:bg-rose-900 active:scale-95';
+      }
+
+      const cardStyle = isSelected
+        ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-110 animate-bounce'
+        : borderStyle;
 
       return `
         <div class="flex flex-col items-center space-y-1">
           <button
             data-slot="${slotId}"
-            class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${
-              isSelected
-                ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-110 animate-bounce'
-                : 'bg-slate-800/90 text-white hover:bg-slate-700 border border-slate-600/50 active:scale-95'
-            }"
+            class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${cardStyle}"
           >
             ${playerNum}
           </button>
@@ -282,18 +331,23 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
       const isSelected = selectedPlayersForSwap.includes(slotId);
       const consecutiveRests = calculateConsecutiveRestsWithCurrent(playerNum, history, currentGame);
       const streakBadge = consecutiveRests >= 2
-        ? `<span class="text-[10px] font-extrabold text-amber-300 bg-amber-950/90 border border-amber-500/50 px-2 py-0.5 rounded-full shadow-sm"><sup>${consecutiveRests}</sup>連</span>`
+        ? `<span class="text-xs font-black text-amber-300 bg-amber-950 border border-amber-500/60 px-2 py-0.5 rounded-full shadow-sm flex items-center justify-center leading-none"><span class="text-sm font-extrabold mr-0.5">${consecutiveRests}</span>連</span>`
         : '';
+
+      let borderStyle = 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95';
+      if (consecutiveRests >= 2) {
+        borderStyle = 'bg-amber-950/80 text-amber-300 border-2 border-amber-400 ring-1 ring-amber-400/40 hover:bg-amber-900/90 active:scale-95';
+      }
+
+      const cardStyle = isSelected
+        ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse'
+        : borderStyle;
 
       return `
         <div class="flex flex-col items-center space-y-1">
           <button
             data-slot="${slotId}"
-            class="player-slot px-3.5 py-2 rounded-xl font-bold text-sm flex items-center space-x-1 transition-all duration-200 shadow-sm ${
-              isSelected
-                ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-300 scale-105 animate-pulse'
-                : 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95'
-            }"
+            class="player-slot px-3.5 py-2 rounded-xl font-bold text-sm flex items-center space-x-1 transition-all duration-200 shadow-sm ${cardStyle}"
           >
             <span class="text-[10px] text-slate-400 font-normal">休</span>
             <span class="font-black text-base">${playerNum}</span>

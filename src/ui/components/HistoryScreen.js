@@ -41,8 +41,8 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
 
           <div class="grid grid-cols-2 gap-2.5">
             ${Array.from({ length: playerCount }, (_, i) => i + 1).map(p => {
-              const stat = stats[p] || { playCount: 0, restCount: 0 };
-              return `
+      const stat = stats[p] || { playCount: 0, restCount: 0 };
+      return `
                 <div class="bg-slate-900/80 border border-slate-800 p-3 rounded-2xl flex items-center justify-between">
                   <div class="flex items-center space-x-2">
                     <span class="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-300 font-black text-sm flex items-center justify-center border border-emerald-500/30">
@@ -56,7 +56,7 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         </div>
 
@@ -72,7 +72,7 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
             </div>
           ` : `
             <div class="space-y-3">
-              ${[...history].reverse().map(game => `
+              ${[...history].map((game, origIdx) => ({ game, origIdx })).reverse().map(({ game, origIdx }) => `
                 <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 space-y-2">
                   <div class="flex items-center justify-between text-xs">
                     <span class="font-extrabold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full">
@@ -83,15 +83,15 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
                   <!-- Teams Match Display -->
                   <div class="flex items-center justify-around py-2 text-base font-black text-white">
                     <div class="flex items-center space-x-1.5 text-emerald-300">
-                      ${renderHistoryPlayerBadge(game.team1[0])}
+                      ${renderHistoryPlayerBadge(game.team1[0], false, getHistoryConsecutivePlays(game.team1[0], origIdx))}
                       <span class="text-slate-600 text-xs">•</span>
-                      ${renderHistoryPlayerBadge(game.team1[1])}
+                      ${renderHistoryPlayerBadge(game.team1[1], false, getHistoryConsecutivePlays(game.team1[1], origIdx))}
                     </div>
                     <div class="text-xs font-black text-slate-500 px-2">VS</div>
                     <div class="flex items-center space-x-1.5 text-teal-300">
-                      ${renderHistoryPlayerBadge(game.team2[0])}
+                      ${renderHistoryPlayerBadge(game.team2[0], false, getHistoryConsecutivePlays(game.team2[0], origIdx))}
                       <span class="text-slate-600 text-xs">•</span>
-                      ${renderHistoryPlayerBadge(game.team2[1])}
+                      ${renderHistoryPlayerBadge(game.team2[1], false, getHistoryConsecutivePlays(game.team2[1], origIdx))}
                     </div>
                   </div>
 
@@ -100,8 +100,8 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
                     <div class="flex items-center space-x-1.5">
                       <span class="font-bold text-slate-300">休憩：</span>
                       ${game.restPlayers && game.restPlayers.length > 0
-                        ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true)).join(' ')
-                        : '<strong class="text-amber-400 font-bold">なし</strong>'}
+        ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true, getHistoryConsecutiveRests(r, origIdx))).join(' ')
+        : '<strong class="text-amber-400 font-bold">なし</strong>'}
                     </div>
                     ${game.manuallySelectedRestPlayers && game.manuallySelectedRestPlayers.length > 0 ? `
                       <span class="text-[10px] text-slate-500">手動指定: ${game.manuallySelectedRestPlayers.join('、')}</span>
@@ -137,11 +137,51 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
       </div>
     `;
 
-    function renderHistoryPlayerBadge(playerNum, isRest = false) {
+    function renderHistoryPlayerBadge(playerNum, isRest = false, consecutiveCount = 1) {
       if (isRest) {
-        return `<span class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md bg-amber-950/90 border border-amber-500/60 text-amber-300 font-extrabold text-xs shadow-sm">${playerNum}</span>`;
+        let restStyle = 'bg-amber-950/90 border border-amber-500/60 text-amber-300';
+        if (consecutiveCount >= 2) {
+          restStyle = 'bg-amber-950 border-2 border-amber-400 text-amber-300 ring-1 ring-amber-400/40 shadow-sm';
+        }
+        return `<span class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md font-extrabold text-xs shadow-sm ${restStyle}">${playerNum}</span>`;
       }
-      return `<span class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md bg-slate-800 border border-slate-600/80 text-emerald-300 font-extrabold text-xs shadow-sm">${playerNum}</span>`;
+
+      let badgeStyle = 'bg-slate-800 border border-slate-600/80 text-emerald-300';
+      if (consecutiveCount === 2) {
+        badgeStyle = 'bg-emerald-950 border-2 border-emerald-400 text-emerald-300 ring-1 ring-emerald-400/40 shadow-sm';
+      } else if (consecutiveCount === 3) {
+        badgeStyle = 'bg-blue-950 border-2 border-blue-400 text-blue-300 ring-1 ring-blue-400/40 shadow-sm';
+      } else if (consecutiveCount >= 4) {
+        badgeStyle = 'bg-rose-950 border-2 border-rose-500 text-rose-300 ring-1 ring-rose-500/40 shadow-sm';
+      }
+
+      return `<span class="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-md font-extrabold text-xs shadow-sm ${badgeStyle}">${playerNum}</span>`;
+    }
+
+    function getHistoryConsecutivePlays(playerNum, gameIdx) {
+      let count = 0;
+      for (let i = gameIdx; i >= 0; i--) {
+        const g = history[i];
+        if (g && (g.team1.includes(playerNum) || g.team2.includes(playerNum))) {
+          count++;
+        } else {
+          break;
+        }
+      }
+      return count;
+    }
+
+    function getHistoryConsecutiveRests(playerNum, gameIdx) {
+      let count = 0;
+      for (let i = gameIdx; i >= 0; i--) {
+        const g = history[i];
+        if (g && g.restPlayers && g.restPlayers.includes(playerNum)) {
+          count++;
+        } else {
+          break;
+        }
+      }
+      return count;
     }
 
     // Confirm dialog helper
