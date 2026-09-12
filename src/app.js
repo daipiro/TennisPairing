@@ -5,13 +5,14 @@ import { AppStore } from './models/store.js';
 import { renderStartScreen } from './ui/components/StartScreen.js';
 import { renderMatchSetupScreen } from './ui/components/MatchSetupScreen.js';
 import { renderHistoryScreen } from './ui/components/HistoryScreen.js';
+import { renderMaxConsecutivePlaysScreen } from './ui/components/MaxConsecutivePlaysScreen.js';
 import { createToastManager } from './ui/components/Toast.js';
 
 export function initApp(rootElement) {
   const store = new AppStore();
   const toastManager = createToastManager(rootElement);
 
-  if (store.state.currentStep !== 'start' && store.state.currentStep !== 'history') {
+  if (store.state.currentStep !== 'start' && store.state.currentStep !== 'history' && store.state.currentStep !== 'maxConsecutive') {
     store.state.currentStep = 'main';
   }
 
@@ -29,8 +30,9 @@ export function initApp(rootElement) {
             store.state.gameHistory = [];
             store.state.currentGame = null;
             store.state.manualRestPlayers = [];
+            store.state.maxConsecutivePlaysMap = {};
           }
-          store.setPlayerCount(count);
+          store.setPlayerCount(count, !isResume);
           render();
         }
       });
@@ -57,6 +59,10 @@ export function initApp(rootElement) {
         onGoHome: () => {
           store.setStep('start');
           render();
+        },
+        onGoMaxConsecutive: () => {
+          store.setStep('maxConsecutive');
+          render();
         }
       });
     } else if (step === 'history') {
@@ -74,6 +80,14 @@ export function initApp(rootElement) {
           toastManager.showToast('初期状態にリセットしました', 'info');
           render();
         },
+        onBack: () => {
+          store.setStep('main');
+          render();
+        }
+      });
+    } else if (step === 'maxConsecutive') {
+      viewComponent = renderMaxConsecutivePlaysScreen({
+        store,
         onBack: () => {
           store.setStep('main');
           render();

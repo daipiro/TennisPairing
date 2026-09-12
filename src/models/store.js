@@ -1,7 +1,7 @@
 /**
  * テニス乱数表 - ローカルストレージ連動ステート管理
  */
-import { determineRestPlayers, selectBestCombination } from './algorithm.js';
+import { calculateConsecutivePlays, determineRestPlayers, selectBestCombination } from './algorithm.js';
 
 const STORAGE_KEY = 'tennis_pairing_app_state_v1';
 
@@ -19,9 +19,10 @@ export class AppStore {
   getDefaultState() {
     return {
       playerCount: 6, // 初期値 6人
-      currentStep: 'start', // 'start' | 'main' | 'history'
+      currentStep: 'start', // 'start' | 'main' | 'history' | 'maxConsecutive'
       gameHistory: [], // 確定ゲーム履歴
       manualRestPlayers: [], // オプションで保持される手動指定休憩者 (例: [1])
+      maxConsecutivePlaysMap: {}, // プレイヤー毎の最大連続出場回数 { 1: 0, 2: 2, ... } (0: 未設定, 1~4)
       currentGame: null, // 現在検討・表示中のゲーム
     };
   }
@@ -32,6 +33,7 @@ export class AppStore {
       if (data) {
         const parsed = JSON.parse(data);
         if (!parsed.manualRestPlayers) parsed.manualRestPlayers = [];
+        if (!parsed.maxConsecutivePlaysMap) parsed.maxConsecutivePlaysMap = {};
         parsed.currentStep = parsed.currentStep === 'start' ? 'start' : 'main';
         return parsed;
       }
@@ -49,14 +51,62 @@ export class AppStore {
     }
   }
 
+  // プレイヤー毎の最大連続出場回数を設定
+  setMaxConsecutivePlays(playerNum, limit) {
+    if (!this.state.maxConsecutivePlaysMap) {
+      this.state.maxConsecutivePlaysMap = {};
+    }
+    this.state.maxConsecutivePlaysMap[playerNum] = Number(limit);
+    this.updateAutoRestFixes();
+    this.generateNextCurrentGame();
+    this.saveState();
+  }
+
+  // 最大連続出場数に達したプレイヤーの自動固定（休憩）追加 & 休憩後解除ロジック
+  updateAutoRestFixes() {
+    const playerCount = this.state.playerCount;
+    const maxRestCount = playerCount - 4;
+    const history = this.state.gameHistory || [];
+    const map = this.state.maxConsecutivePlaysMap || {};
+
+    let manualList = [...(this.state.manualRestPlayers || [])];
+
+    const lastGame = history.length > 0 ? history[history.length - 1] : null;
+    const lastGameRests = lastGame ? (lastGame.restPlayers || []) : [];
+
+    for (let p = 1; p <= playerCount; p++) {
+      const limit = map[p] || 0;
+      if (limit <= 0) continue;
+
+      const consecutive = calculateConsecutivePlays(p, history);
+
+      if (lastGameRests.includes(p)) {
+        manualList = manualList.filter(id => id !== p);
+      } else if (consecutive >= limit) {
+        if (!manualList.includes(p) && manualList.length < maxRestCount) {
+          manualList.push(p);
+        }
+      }
+    }
+
+    this.state.manualRestPlayers = manualList.sort((a, b) => a - b);
+  }
+
   // 参加人数選択 & ゲーム新規開始
-  setPlayerCount(count) {
+  setPlayerCount(count, isNewGame = false) {
     this.state.playerCount = count;
     const maxRest = count - 4;
-    this.state.manualRestPlayers = (this.state.manualRestPlayers || [])
-      .filter(p => p <= count)
-      .slice(0, Math.max(0, maxRest));
+
+    if (isNewGame) {
+      this.state.maxConsecutivePlaysMap = {};
+      this.state.manualRestPlayers = [];
+    } else {
+      this.state.manualRestPlayers = (this.state.manualRestPlayers || [])
+        .filter(p => p <= count)
+        .slice(0, Math.max(0, maxRest));
+    }
     
+    this.updateAutoRestFixes();
     this.state.currentGame = null;
     this.generateNextCurrentGame();
     this.state.currentStep = 'main';
@@ -70,6 +120,9 @@ export class AppStore {
   generateNextCurrentGame(lastDisplayedKey = null) {
     const playerCount = this.state.playerCount;
     const gameNumber = this.state.gameHistory.length + 1;
+
+    // 自動固定（休憩）保持・解除の最新化
+    this.updateAutoRestFixes();
 
     // 直前の確定ゲームの休憩者を特定
     let lastGameRestPlayers = [];
@@ -170,7 +223,10 @@ export class AppStore {
 
     const lastGame = this.state.gameHistory.pop();
 
-    const manualRest = lastGame.manuallySelectedRestPlayers || [];
+    // 巻き戻された履歴に基いて自動固定保持（休憩）状態を再設定
+    this.updateAutoRestFixes();
+
+    const manualRest = [...(this.state.manualRestPlayers || [])];
     const allRest = lastGame.restPlayers || [];
     const autoRest = allRest.filter(p => !manualRest.includes(p));
 

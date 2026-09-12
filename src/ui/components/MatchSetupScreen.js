@@ -7,7 +7,7 @@
  */
 import { makeCardKey, calculateConsecutivePlaysWithCurrent, calculateConsecutiveRestsWithCurrent } from '../../models/algorithm.js';
 
-export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoHistory, onGoHome }) {
+export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onGoHistory, onGoHome, onGoMaxConsecutive }) {
   const playerCount = store.state.playerCount;
   const history = store.state.gameHistory || [];
   const maxRestCount = playerCount - 4;
@@ -113,11 +113,19 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
               </svg>
-              <span>休憩者を選択（固定保持）</span>
+              <span>休憩者を選択</span>
             </h3>
-            <span class="text-[11px] font-bold text-amber-400">
-              手動: ${manualCount}人 / 最大${maxRestCount}人
-            </span>
+            <div class="flex items-center space-x-2">
+              <span class="text-[11px] font-bold text-amber-400">
+                手動: ${manualCount}人 / 最大${maxRestCount}人
+              </span>
+              <button id="btn-max-consecutive" class="px-2 py-0.5 rounded-lg text-[11px] font-bold text-emerald-300 bg-emerald-950/80 border border-emerald-800/60 hover:bg-emerald-900 transition-colors flex items-center space-x-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                </svg>
+                <span>連続制限設定</span>
+              </button>
+            </div>
           </div>
 
           <!-- Rest Player Option Buttons (Inline 1~N, strictly 1 row) -->
@@ -456,6 +464,9 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
 
     const homeBtn = container.querySelector('#btn-home');
     if (homeBtn) homeBtn.addEventListener('click', onGoHome);
+
+    const maxConsecutiveBtn = container.querySelector('#btn-max-consecutive');
+    if (maxConsecutiveBtn) maxConsecutiveBtn.addEventListener('click', onGoMaxConsecutive);
 
     const historyBtn = container.querySelector('#btn-history');
     if (historyBtn) historyBtn.addEventListener('click', onGoHistory);
