@@ -312,9 +312,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
     function renderPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       const consecutivePlays = calculateConsecutivePlaysWithCurrent(playerNum, history, currentGame);
-      const streakBadge = consecutivePlays >= 2
-        ? `<span class="text-xs font-black text-emerald-300 bg-emerald-950 border border-emerald-500/60 px-2 py-0.5 rounded-full shadow-sm flex items-center justify-center leading-none"><span class="text-sm font-extrabold mr-0.5">${consecutivePlays}</span>連</span>`
-        : '';
 
       let borderStyle = 'bg-slate-800/90 text-white border border-slate-600/50 hover:bg-slate-700 active:scale-95';
       if (consecutivePlays === 2) {
@@ -337,7 +334,13 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           >
             ${playerNum}
           </button>
-          ${streakBadge}
+          <div class="h-6 flex items-center justify-center">
+            ${consecutivePlays >= 2 ? `
+              <span class="text-xs font-black text-emerald-300 bg-emerald-950 border border-emerald-500/60 px-2 py-0.5 rounded-full shadow-sm flex items-center justify-center leading-none">
+                <span class="text-sm font-extrabold mr-0.5">${consecutivePlays}</span>連
+              </span>
+            ` : ''}
+          </div>
         </div>
       `;
     }
@@ -346,9 +349,6 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
     function renderRestPlayerCard(playerNum, slotId) {
       const isSelected = selectedPlayersForSwap.includes(slotId);
       const consecutiveRests = calculateConsecutiveRestsWithCurrent(playerNum, history, currentGame);
-      const streakBadge = consecutiveRests >= 2
-        ? `<span class="text-xs font-black text-amber-300 bg-amber-950 border border-amber-500/60 px-2 py-0.5 rounded-full shadow-sm flex items-center justify-center leading-none"><span class="text-sm font-extrabold mr-0.5">${consecutiveRests}</span>連</span>`
-        : '';
 
       let borderStyle = 'bg-slate-800/90 text-amber-300 border border-amber-500/30 hover:bg-slate-700/90 active:scale-95';
       if (consecutiveRests >= 2) {
@@ -368,7 +368,13 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             <span class="text-[10px] text-slate-400 font-normal">休</span>
             <span class="font-black text-base">${playerNum}</span>
           </button>
-          ${streakBadge}
+          <div class="h-6 flex items-center justify-center">
+            ${consecutiveRests >= 2 ? `
+              <span class="text-xs font-black text-amber-300 bg-amber-950 border border-amber-500/60 px-2 py-0.5 rounded-full shadow-sm flex items-center justify-center leading-none">
+                <span class="text-sm font-extrabold mr-0.5">${consecutiveRests}</span>連
+              </span>
+            ` : ''}
+          </div>
         </div>
       `;
     }
