@@ -73,9 +73,10 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
         ` : `
           <div class="space-y-2.5">
             ${history.map((game, gameIdx) => `
-              <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 flex items-center justify-between text-xs">
-                <div class="flex items-center space-x-2">
-                  <span class="font-black text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full text-[10px]">
+              <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 space-y-2 text-xs">
+                <!-- 上段: 対戦プレイヤー (中央揃え) -->
+                <div class="relative flex items-center justify-center min-h-[24px]">
+                  <span class="absolute left-0 font-black text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded-full text-[10px] shrink-0">
                     第${game.gameNumber}G
                   </span>
                   <div class="flex items-center space-x-1.5 font-extrabold text-white text-sm">
@@ -88,11 +89,15 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
                     ${renderHistoryPlayerBadge(game.team2[1], false, getHistoryConsecutivePlays(game.team2[1], gameIdx))}
                   </div>
                 </div>
-                <div class="flex items-center space-x-1 text-[11px] text-amber-400 font-medium">
-                  <span class="text-slate-400">休:</span>
-                  ${game.restPlayers && game.restPlayers.length > 0
+
+                <!-- 下段: 休憩プレイヤー (左寄せ) -->
+                <div class="pt-1.5 border-t border-slate-800/80 flex items-center justify-start space-x-2 text-[11px]">
+                  <span class="text-slate-400 font-medium">休:</span>
+                  <div class="flex items-center space-x-1 font-medium">
+                    ${game.restPlayers && game.restPlayers.length > 0
         ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true, getHistoryConsecutiveRests(r, gameIdx))).join(' ')
         : '<span class="text-slate-500">なし</span>'}
+                  </div>
                 </div>
               </div>
             `).join('')}
@@ -115,24 +120,27 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             </span>
           </div>
 
-          <!-- Rest Player Option Buttons (Inline 1~N) -->
-          <div class="grid grid-cols-6 gap-2 pt-1">
+          <!-- Rest Player Option Buttons (Inline 1~N, strictly 1 row) -->
+          <div class="grid gap-1.5 pt-1 w-full" style="grid-template-columns: repeat(${playerCount}, minmax(0, 1fr));">
             ${Array.from({ length: playerCount }, (_, i) => i + 1).map(p => {
           const isSelected = manualRestPlayers.includes(p);
           const isDisabled = !isSelected && manualCount >= maxRestCount;
+          const isLarge = playerCount >= 7;
+          const isXLarge = playerCount >= 9;
+
           return `
                 <button
                   data-manual-rest="${p}"
                   ${isDisabled ? 'disabled' : ''}
-                  class="manual-rest-toggle-btn py-2.5 rounded-xl font-black text-base transition-all duration-150 flex flex-col items-center justify-center ${isSelected
+                  class="manual-rest-toggle-btn ${isXLarge ? 'py-1.5 px-0.5 text-xs' : isLarge ? 'py-2 px-1 text-sm' : 'py-2.5 px-1 text-base'} rounded-xl font-black transition-all duration-150 flex flex-col items-center justify-center min-w-0 ${isSelected
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 scale-105 ring-2 ring-amber-300'
               : isDisabled
                 ? 'bg-slate-900/40 text-slate-600 border border-slate-800/40 cursor-not-allowed opacity-50'
                 : 'bg-slate-800/90 text-slate-200 hover:bg-slate-700 border border-slate-700/60 active:scale-95'
             }"
                 >
-                  <span>${p}</span>
-                  ${isSelected ? `<span class="text-[9px] font-extrabold text-amber-950">固定</span>` : ''}
+                  <span class="leading-none">${p}</span>
+                  ${isSelected ? `<span class="${isLarge ? 'text-[7px]' : 'text-[9px]'} font-extrabold text-amber-950 leading-tight">固定</span>` : ''}
                 </button>
               `;
         }).join('')}
