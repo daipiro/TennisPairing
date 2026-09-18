@@ -60,29 +60,29 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
             ${history.map((game, gameIdx) => `
               <div class="court-card rounded-3xl p-4 border shadow-2xl space-y-2.5">
                 <!-- Horizontal Players Row: [ Game Badge ]  [ Team A (2) ]  VS  [ Team B (2) ] -->
-                <div class="flex items-start justify-between py-1 px-1">
+                <div class="flex items-start justify-between py-1 px-0.5">
                   <!-- Game Number Badge -->
-                  <div class="flex items-start shrink-0 min-w-[54px] pt-0.5">
-                    <span class="bg-emerald-950/90 border border-emerald-600/60 text-emerald-400 text-xs font-black px-2 py-1.5 rounded-xl shadow-inner whitespace-nowrap">
+                  <div class="flex items-start shrink-0 min-w-[clamp(2.5rem,11vw,3.375rem)] pt-0.5">
+                    <span class="bg-emerald-950/90 border border-emerald-600/60 text-emerald-400 text-[clamp(0.65rem,2.5vw,0.75rem)] font-black px-1.5 py-1 rounded-xl shadow-inner whitespace-nowrap">
                       第${game.gameNumber}G
                     </span>
                   </div>
 
                   <!-- Team A Players -->
-                  <div class="flex space-x-2.5 items-start">
+                  <div class="flex space-x-1.5 sm:space-x-2.5 items-start">
                     ${renderHistoryDisplayPlayerCard(game.team1[0], gameIdx)}
                     ${renderHistoryDisplayPlayerCard(game.team1[1], gameIdx)}
                   </div>
 
                   <!-- VS Badge -->
-                  <div class="px-1 flex flex-col items-center justify-center pt-4">
-                    <span class="bg-slate-900/90 text-amber-400 text-[11px] font-black tracking-widest px-2 py-0.5 rounded-full border border-amber-500/40 shadow-inner">
+                  <div class="px-0.5 flex flex-col items-center justify-center pt-3 sm:pt-4">
+                    <span class="bg-slate-900/90 text-amber-400 text-[clamp(0.6rem,2.4vw,0.7rem)] font-black tracking-widest px-1.5 py-0.5 rounded-full border border-amber-500/40 shadow-inner">
                       VS
                     </span>
                   </div>
 
                   <!-- Team B Players -->
-                  <div class="flex space-x-2.5 items-start">
+                  <div class="flex space-x-1.5 sm:space-x-2.5 items-start">
                     ${renderHistoryDisplayPlayerCard(game.team2[0], gameIdx)}
                     ${renderHistoryDisplayPlayerCard(game.team2[1], gameIdx)}
                   </div>
@@ -90,11 +90,11 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
 
                 <!-- Bottom Row: Rest Players inside Court Container -->
                 ${game.restPlayers && game.restPlayers.length > 0 ? `
-                  <div class="pt-2 border-t border-slate-800/80 flex items-start px-1">
+                  <div class="pt-2 border-t border-slate-800/80 flex items-start px-0.5">
                     <!-- 左側スペーサー (第〇Gバッジの幅に揃える) -->
-                    <div class="shrink-0 min-w-[54px]"></div>
+                    <div class="shrink-0 min-w-[clamp(2.5rem,11vw,3.375rem)]"></div>
                     <!-- 休憩選手カード -->
-                    <div class="flex items-start space-x-2.5">
+                    <div class="flex items-start space-x-1.5 sm:space-x-2.5">
                       ${game.restPlayers.map(r => renderHistoryDisplayRestCard(r, gameIdx)).join('')}
                     </div>
                   </div>
@@ -109,29 +109,29 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
           <!-- Horizontal Court Container -->
           <div class="court-card rounded-3xl p-4 border shadow-2xl space-y-2.5">
             <!-- Horizontal Players Row: [ Game Badge ]  [ Team A (2) ]  VS  [ Team B (2) ] -->
-            <div class="flex items-start justify-between py-1 px-1">
+            <div class="flex items-start justify-between py-1 px-0.5">
               <!-- Game Number Badge (出場ナンバーカードの上位置に揃える) -->
-              <div class="flex items-start shrink-0 min-w-[54px] pt-0.5">
-                <span class="bg-emerald-950/90 border border-emerald-600/60 text-emerald-400 text-xs font-black px-2 py-1.5 rounded-xl shadow-inner whitespace-nowrap">
+              <div class="flex items-start shrink-0 min-w-[clamp(2.5rem,11vw,3.375rem)] pt-0.5">
+                <span class="bg-emerald-950/90 border border-emerald-600/60 text-emerald-400 text-[clamp(0.65rem,2.5vw,0.75rem)] font-black px-1.5 py-1 rounded-xl shadow-inner whitespace-nowrap">
                   第${gameNumber}G
                 </span>
               </div>
 
               <!-- Team A Players -->
-              <div class="flex space-x-2.5 items-start">
+              <div class="flex space-x-1.5 sm:space-x-2.5 items-start">
                 ${renderPlayerCard(team1[0], 't1-0')}
                 ${renderPlayerCard(team1[1], 't1-1')}
               </div>
 
               <!-- VS Badge -->
-              <div class="px-1 flex flex-col items-center justify-center pt-4">
-                <span class="bg-slate-900/90 text-amber-400 text-[11px] font-black tracking-widest px-2 py-0.5 rounded-full border border-amber-500/40 shadow-inner">
+              <div class="px-0.5 flex flex-col items-center justify-center pt-3 sm:pt-4">
+                <span class="bg-slate-900/90 text-amber-400 text-[clamp(0.6rem,2.4vw,0.7rem)] font-black tracking-widest px-1.5 py-0.5 rounded-full border border-amber-500/40 shadow-inner">
                   VS
                 </span>
               </div>
 
               <!-- Team B Players -->
-              <div class="flex space-x-2.5 items-start">
+              <div class="flex space-x-1.5 sm:space-x-2.5 items-start">
                 ${renderPlayerCard(team2[0], 't2-0')}
                 ${renderPlayerCard(team2[1], 't2-1')}
               </div>
@@ -139,11 +139,11 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
 
             <!-- Bottom Row: Rest Players inside Court Container (Team Aの左端カードと位置揃え) -->
             ${restPlayers && restPlayers.length > 0 ? `
-              <div class="pt-2 border-t border-slate-800/80 flex items-start px-1">
+              <div class="pt-2 border-t border-slate-800/80 flex items-start px-0.5">
                 <!-- 左側スペーサー (第〇Gバッジの幅に揃える) -->
-                <div class="shrink-0 min-w-[54px]"></div>
+                <div class="shrink-0 min-w-[clamp(2.5rem,11vw,3.375rem)]"></div>
                 <!-- 休憩選手カード -->
-                <div class="flex items-start space-x-2.5">
+                <div class="flex items-start space-x-1.5 sm:space-x-2.5">
                   ${restPlayers.map((playerNum, idx) => renderRestPlayerCard(playerNum, `rest-${idx}`)).join('')}
                 </div>
               </div>
@@ -264,7 +264,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
 
       return `
         <div class="flex flex-col items-center">
-          <div class="w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center shadow-md ${borderStyle}">
+          <div class="w-[clamp(2.5rem,11vw,3.5rem)] h-[clamp(2.5rem,11vw,3.5rem)] rounded-2xl font-black text-[clamp(1.125rem,4.5vw,1.5rem)] flex items-center justify-center shadow-md ${borderStyle}">
             ${playerNum}
           </div>
         </div>
@@ -282,7 +282,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
 
       return `
         <div class="flex flex-col items-center">
-          <div class="w-12 h-12 rounded-2xl font-black text-xl flex items-center justify-center shadow-md ${borderStyle}">
+          <div class="w-[clamp(2.25rem,9.5vw,3rem)] h-[clamp(2.25rem,9.5vw,3rem)] rounded-2xl font-black text-[clamp(1rem,3.8vw,1.25rem)] flex items-center justify-center shadow-md ${borderStyle}">
             ${playerNum}
           </div>
         </div>
@@ -361,7 +361,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
         <div class="flex flex-col items-center space-y-1">
           <button
             data-slot="${slotId}"
-            class="player-slot w-14 h-14 rounded-2xl font-black text-2xl flex items-center justify-center transition-all duration-200 shadow-md ${cardStyle}"
+            class="player-slot w-[clamp(2.5rem,11vw,3.5rem)] h-[clamp(2.5rem,11vw,3.5rem)] rounded-2xl font-black text-[clamp(1.125rem,4.5vw,1.5rem)] flex items-center justify-center transition-all duration-200 shadow-md ${cardStyle}"
           >
             ${playerNum}
           </button>
@@ -394,7 +394,7 @@ export function renderMatchSetupScreen({ store, onConfirmMatch, onUndoMatch, onG
         <div class="flex flex-col items-center space-y-1">
           <button
             data-slot="${slotId}"
-            class="player-slot w-12 h-12 rounded-2xl font-black text-xl flex items-center justify-center transition-all duration-200 shadow-md ${cardStyle}"
+            class="player-slot w-[clamp(2.25rem,9.5vw,3rem)] h-[clamp(2.25rem,9.5vw,3rem)] rounded-2xl font-black text-[clamp(1rem,3.8vw,1.25rem)] flex items-center justify-center transition-all duration-200 shadow-md ${cardStyle}"
           >
             ${playerNum}
           </button>
