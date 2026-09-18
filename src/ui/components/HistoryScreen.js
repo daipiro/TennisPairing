@@ -73,35 +73,38 @@ export function renderHistoryScreen({ store, onUndo, onReset, onBack }) {
           ` : `
             <div class="space-y-3">
               ${[...history].map((game, origIdx) => ({ game, origIdx })).reverse().map(({ game, origIdx }) => `
-                <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 space-y-2">
-                  <div class="flex items-center justify-between text-xs">
-                    <span class="font-extrabold text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2.5 py-0.5 rounded-full">
-                      第 ${game.gameNumber} ゲーム
-                    </span>
+                <div class="glass-panel rounded-2xl p-4 border border-slate-800/80 space-y-2.5">
+                  <!-- 上段: ゲーム数バッジ (左端) & Teams Match Display -->
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-start shrink-0 min-w-[50px] pt-0.5">
+                      <span class="font-black text-emerald-400 bg-emerald-950/90 border border-emerald-800/60 px-2 py-0.5 rounded-lg text-xs shrink-0 whitespace-nowrap">
+                        第${game.gameNumber}G
+                      </span>
+                    </div>
+                    <div class="flex-1 flex items-center justify-center space-x-2 text-base font-black text-white">
+                      <div class="flex items-center space-x-1.5 text-emerald-300">
+                        ${renderHistoryPlayerBadge(game.team1[0], false, getHistoryConsecutivePlays(game.team1[0], origIdx))}
+                        <span class="text-slate-600 text-xs">•</span>
+                        ${renderHistoryPlayerBadge(game.team1[1], false, getHistoryConsecutivePlays(game.team1[1], origIdx))}
+                      </div>
+                      <div class="text-xs font-black text-slate-500 px-1">VS</div>
+                      <div class="flex items-center space-x-1.5 text-teal-300">
+                        ${renderHistoryPlayerBadge(game.team2[0], false, getHistoryConsecutivePlays(game.team2[0], origIdx))}
+                        <span class="text-slate-600 text-xs">•</span>
+                        ${renderHistoryPlayerBadge(game.team2[1], false, getHistoryConsecutivePlays(game.team2[1], origIdx))}
+                      </div>
+                    </div>
                   </div>
 
-                  <!-- Teams Match Display -->
-                  <div class="flex items-center justify-around py-2 text-base font-black text-white">
-                    <div class="flex items-center space-x-1.5 text-emerald-300">
-                      ${renderHistoryPlayerBadge(game.team1[0], false, getHistoryConsecutivePlays(game.team1[0], origIdx))}
-                      <span class="text-slate-600 text-xs">•</span>
-                      ${renderHistoryPlayerBadge(game.team1[1], false, getHistoryConsecutivePlays(game.team1[1], origIdx))}
-                    </div>
-                    <div class="text-xs font-black text-slate-500 px-2">VS</div>
-                    <div class="flex items-center space-x-1.5 text-teal-300">
-                      ${renderHistoryPlayerBadge(game.team2[0], false, getHistoryConsecutivePlays(game.team2[0], origIdx))}
-                      <span class="text-slate-600 text-xs">•</span>
-                      ${renderHistoryPlayerBadge(game.team2[1], false, getHistoryConsecutivePlays(game.team2[1], origIdx))}
-                    </div>
-                  </div>
-
-                  <!-- Rest info -->
-                  <div class="text-xs text-slate-400 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-                    <div class="flex items-center space-x-1.5">
-                      <span class="font-bold text-slate-300">休憩：</span>
-                      ${game.restPlayers && game.restPlayers.length > 0
+                  <!-- 下段: Rest info ("休:"削除 & Team A左端と位置合わせ) -->
+                  <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between">
+                    <div class="flex items-center">
+                      <div class="shrink-0 min-w-[50px]"></div>
+                      <div class="flex items-center space-x-1.5">
+                        ${game.restPlayers && game.restPlayers.length > 0
         ? game.restPlayers.map(r => renderHistoryPlayerBadge(r, true, getHistoryConsecutiveRests(r, origIdx))).join(' ')
-        : '<strong class="text-amber-400 font-bold">なし</strong>'}
+        : '<span class="text-slate-500 text-xs">なし</span>'}
+                      </div>
                     </div>
                     ${game.manuallySelectedRestPlayers && game.manuallySelectedRestPlayers.length > 0 ? `
                       <span class="text-[10px] text-slate-500">手動指定: ${game.manuallySelectedRestPlayers.join('、')}</span>
